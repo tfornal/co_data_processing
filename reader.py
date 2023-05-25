@@ -67,7 +67,6 @@ def generate_time_stamps(time_interval, dt):
     selected_time_stamps = [
         "{:.3f}".format(i) for i in np.arange(start, end + dt / 100, dt)
     ]
-    # print(selected_time_stamps)
     return selected_time_stamps
 
 
@@ -85,7 +84,7 @@ def get_BGR(file_name):
 
 @timer
 def get_all_spectra(file_name, lineRange, time_interval, dt):
-    # wyznacza intensywnosci wybranych przerzialod czasowych (time interval)
+    # wyznacza intensywnosci wybranych przedzialow czasowych (time interval)
     start_time = time.time()
 
     with open(file_name, "rb") as binary_file:
