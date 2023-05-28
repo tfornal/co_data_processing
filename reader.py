@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Jan 18 14:45:52 2023
-
-@author: iksiaz
-"""
 import pandas as pd
 import numpy as np
 from scipy import integrate
@@ -13,6 +7,7 @@ import time
 from functools import wraps
 
 
+##3 still in the development phase
 def timer(function):
     @wraps(function)
     def wrapper(*args, **kwargs):
@@ -120,8 +115,6 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, dt, pl
 
     range_ = integral_line_range[f"{element}"]
     cwd = Path.cwd()
-    print(cwd)
-    # breakpoint()
     file_name = f"{element}-{date}.csv"
     path = cwd / "discharge_numbers"
     total_f_name = path / file_name
@@ -138,7 +131,6 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, dt, pl
         / element
         / date
     )
-    print(directory)
     file_list = list(directory.glob("**/*"))
 
     ### TODO moze wrunek po det size?
