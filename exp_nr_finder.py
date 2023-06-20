@@ -173,7 +173,9 @@ class Triggers:
 
     def save_file(self):
         """Saves the pandas DataFrame as a csv file with the format "YYMMDD_programs.csv"."""
-        self.df.to_csv(f"{self.date}_programs.csv")
+        destination = pathlib.Path.cwd() / "experimental_programs"
+        destination.mkdir(parents=True, exist_ok=True)
+        self.df.to_csv(destination / f"{self.date}_programs.csv")
         print("Triggers successfully saved!")
 
 
@@ -396,7 +398,9 @@ class ExpAssignment:
 
 
     def save_file(self):
-        self.all_files_info_df.to_csv(f"{self.element}-{self.date}.csv", sep=",")
+        destination = pathlib.Path.cwd() / "discharge_numbers"
+        destination.mkdir(parents=True, exist_ok=True)
+        self.all_files_info_df.to_csv(destination / f"{self.element}-{self.date}.csv", sep=",")
 
 
 def get_all_subdirectories(element):
