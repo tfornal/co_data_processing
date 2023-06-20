@@ -23,7 +23,6 @@ def timer(function):
         return result
     return wrapper
 
-
 def get_pixel_intens(binary_file, row, column):
     shift = 4096 + (row - 1) * 3072 + (column - 1) * 3
     binary_file.seek(shift)
