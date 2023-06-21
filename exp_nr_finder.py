@@ -337,24 +337,19 @@ class ExpAssignment:
                         ):
                             dic[idx_df_total] = row_triggers["discharge_nr"]
                             continue
-                    elif (row_total.file_size > 10) and (
-                        self.triggers_df["T1"].loc[idx_df_triggers - 1]
-                        < row_total["utc_time"]
-                        < self.triggers_df["T1"].loc[idx_df_triggers]
-                    ):
-                        dic[idx_df_total] = row_triggers["discharge_nr"] - 1
+
                     elif (row_total.file_size > 10) and (
                         self.triggers_df["T6"].loc[idx_df_triggers - 1]
                         < row_total["utc_time"]
                         < self.triggers_df["T6"].loc[idx_df_triggers]
                     ):
                         dic[idx_df_total] = row_triggers["discharge_nr"]
-                    elif (
-                        self.triggers_df["T6"].loc[idx_df_triggers - 1]
+                    elif (row_total.file_size > 10) and (
+                        self.triggers_df["T1"].loc[idx_df_triggers - 1]
                         < row_total["utc_time"]
                         < self.triggers_df["T1"].loc[idx_df_triggers]
                     ):
-                        dic[idx_df_total] = row_triggers["discharge_nr"]
+                        dic[idx_df_total] = row_triggers["discharge_nr"] - 1
                 except KeyError:
                     dic[idx_df_total] = row_triggers["discharge_nr"]
 
@@ -364,57 +359,6 @@ class ExpAssignment:
             ] = np.array([i for i in dic.values()])
         except ValueError:
             print(f"\n{self.date} - no discharges registered during the day!\n")
-
-    # def assign_exp_nr(self):
-    #     """
-    #     Assigns the discharge number to each data point in `self.all_files_info_df` based on its `utc_time`.
-
-    #     The discharge number is taken from `self.triggers_df`. For each row in `self.all_files_info_df`, this function
-    #     iterates through each row in `self.triggers_df` to find a corresponding discharge number, by checking if the
-    #     `utc_time` of the current row in `self.all_files_info_df` falls between the `T0` of the current and previous row
-    #     in `self.triggers_df`.
-
-    #     If a match is found, the discharge number of the corresponding row in `self.triggers_df` is appended to a list.
-    #     The list is then transformed into a numpy array and used to update the `discharge_nr` column in `self.all_files_info_df`.
-
-    #     If there is no discharge registered during the day, a message is printed with the date.
-    #     """
-
-    #     dic = {}
-    #     for idx_df_total, row_total in self.all_files_info_df.iterrows():
-    #         for (
-    #             idx_df_triggers,
-    #             row_triggers,
-    #         ) in self.triggers_df.iterrows():
-    #             try:
-    #                 if idx_df_triggers == 0:
-    #                     continue
-    #                 if "BGR" in row_total["file_name"]:
-    #                     if (
-    #                         self.triggers_df["T6"].loc[idx_df_triggers - 1]
-    #                         < row_total["utc_time"]
-    #                         < self.triggers_df["T6"].loc[idx_df_triggers]
-    #                     ):
-    #                         dic[idx_df_total] = row_triggers["discharge_nr"]
-    #                         continue
-    #                 if self.triggers_df["T6"].loc[idx_df_triggers - 1] < row_total["utc_time"]  < self.triggers_df["T1"].loc[idx_df_triggers]:
-    #                     dic[idx_df_total] = row_triggers["discharge_nr"]
-    #                     continue
-    #                 if (row_total.file_size > 10) and ( self.triggers_df["T6"].loc[idx_df_triggers - 1] < row_total["utc_time"]  < self.triggers_df["T6"].loc[idx_df_triggers]):
-    #                     dic[idx_df_total] = row_triggers["discharge_nr"]
-    #                     continue
-    #                 if (row_total.file_size > 10) and ( self.triggers_df["T1"].loc[idx_df_triggers - 1] < row_total["utc_time"]  < self.triggers_df["T1"].loc[idx_df_triggers]):
-    #                     dic[idx_df_total] = row_triggers["discharge_nr"] - 1
-    #                     continue
-    #                 # else:
-    #                 #     dic[idx_df_total] = row_triggers["discharge_nr"] - 1
-    #             except KeyError:
-    #                 dic[idx_df_total] = row_triggers["discharge_nr"]
-
-    #     try:
-    #         self.all_files_info_df["discharge_nr"].loc[np.array([i for i in dic.keys()])] = np.array([i for i in dic.values()])
-    #     except ValueError:
-    #         print(f"\n{self.date} - no discharges registered during the day!\n")
 
     def save_file(self):
         destination = pathlib.Path.cwd() / "discharge_numbers"
@@ -434,6 +378,7 @@ def get_all_subdirectories(element):
         / "data"
         / element
     )
+    # path = pathlib.Path(__file__).parent.parent.resolve() / "__Experimental_data" / "data"/  "test"/element
     sub_dirs = [f for f in path.iterdir() if f.is_dir() and f.name[0] != (".")]
 
     return sub_dirs
