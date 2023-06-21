@@ -1,17 +1,10 @@
-# -*- coding: utf-8 -*-
-"""
-tfornal
-"""
 import pandas as pd
 import numpy as np
 from scipy import integrate
 from pathlib import Path
-
-# from exp_nr_finder import ExpAssignment
 import matplotlib.pyplot as plt
 import time
 from functools import wraps
-from tqdm import tqdm
 
 
 def timer(function):
@@ -125,10 +118,11 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, dt, pl
 
     file_name = f"{element}-{date}.csv"
     path = cwd / "discharge_numbers"
+
     total_f_name = path / file_name
     df = pd.read_csv(total_f_name, sep=",")
     df = df[df["discharge_nr"] == discharge_nr]
-
+    breakpoint()
     selected_file_names = df["file_name"].to_list()
 
     if not selected_file_names:
@@ -200,22 +194,3 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, dt, pl
 
         if plotter:
             plot()
-
-
-start = time.time()
-
-element = "C"
-date = "20230215"
-discharges = [21]
-time_interval = [0.01, 2]
-dt = 5e-3
-
-
-if __name__ == "__main__":
-    for shot in discharges:
-        get_discharge_nr_from_csv(element, date, shot, time_interval, dt, plotter=True)
-
-
-fe = time.time() - start
-format_float = "{:.2f}".format(fe)
-print(f"Finished within {format_float}s")
