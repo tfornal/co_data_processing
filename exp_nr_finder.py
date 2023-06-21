@@ -23,7 +23,7 @@ class Files:
         self.directory = path
         self.date = self.directory.stem
         self.file_list, self.file_sizes = self.get_file_list()
-
+        
     def get_file_list(self):
         """
         Returns a list of file names in the directory.
@@ -31,12 +31,10 @@ class Files:
         directory = self.directory.glob("**/*")
         file_list = [x.stem for x in directory if x.is_file()]
         directory = self.directory.glob("**/*")
-
-        file_sizes = [
-            pathlib.Path(x).stat().st_size / 1024 for x in directory if x.is_file()
-        ]
+        
+        file_sizes = [pathlib.Path(x).stat().st_size/1024 for x in directory if x.is_file()]
         return file_list, file_sizes
-
+    
 
 class Triggers:
 
@@ -62,7 +60,8 @@ class Triggers:
         self.df = self._create_df()
         if savefile:
             self.save_file()
-
+    
+    
     def _convert_to_UTC(self):
         """
         Converts the `date` passed as parameter to UTC timestamps for the start and end of the day.
@@ -72,7 +71,7 @@ class Triggers:
         tuple
             A tuple of two integers representing the UTC timestamps for the start and end of the day of the `date` passed as parameter.
         """
-
+        
         year, month, day = (
             int(self.date[:4]),
             int(self.date[4:6]),
@@ -96,7 +95,8 @@ class Triggers:
         return beginning_of_the_day, end_of_the_day
 
     def _get_url(self):
-        """Returns the URL for accessing triggers data for the `date` passed as parameter."""
+        """Returns the URL for accessing triggers data for the `date` passed as parameter.
+        """
         url = (
             self.ARCHIVE_PROGINFO
             + str(self.beginning_of_the_day)
@@ -109,13 +109,13 @@ class Triggers:
         """
         Returns the discharge numbers and start of each discharge in UTC timestamps for the day of the `date` passed as parameter.
         """
-
+        
         tab_startow = []
         tab_konca = []
         T0 = []
         T1 = []
         T6 = []
-
+        
         wywolanie_dnia = requests.get(self.url)
         number_of_discharges = len(wywolanie_dnia.json()["programs"])
         print(f"Number of discharges on 20{self.date}:", number_of_discharges)
@@ -126,12 +126,12 @@ class Triggers:
             pole_koniec = wywolanie_dnia.json()["programs"][discharge_nr]["upto"]
             tab_konca.append(pole_koniec)
             try:
-                start_program = wywolanie_dnia.json()["programs"][discharge_nr][
-                    "trigger"
-                ]["0"][0]
+                start_program = wywolanie_dnia.json()["programs"][discharge_nr]["trigger"][
+                    "0"
+                ][0]
             except (IndexError, TypeError):
                 start_program = 0
-
+            
             try:
                 start_ecrh = wywolanie_dnia.json()["programs"][discharge_nr]["trigger"][
                     "1"
@@ -140,22 +140,20 @@ class Triggers:
                 if start_program == 0:
                     start_ecrh = 0
                 else:
-                    start_ecrh = (
-                        start_program + 60_000_000_000
-                    )  ### dodac 60s od startu ECRH
-                # start_ecrh = 0 #### sprawdzic wszystkie
-
-            try:
-                end_of_program = wywolanie_dnia.json()["programs"][discharge_nr][
-                    "trigger"
-                ]["6"][0]
+                    start_ecrh = start_program + 60_000_000_000 ### dodac 60s od startu ECRH
+                # start_ecrh = 0 #### sprawdzic wszystkie 
+            
+            try: 
+                end_of_program = wywolanie_dnia.json()["programs"][discharge_nr]["trigger"][
+                    "6"
+                ][0]
             except (IndexError, TypeError):
                 end_of_program = 0
             T0.append(start_program)
             T1.append(start_ecrh)
             T6.append(end_of_program)
         list_of_discharges = np.arange(1, number_of_discharges + 1)
-        return list_of_discharges, T0, T1, T6
+        return list_of_discharges, T0,T1, T6
 
     def _create_df(self):
         """Creates a pandas DataFrame from the processed triggers data.
@@ -191,9 +189,7 @@ class ExpAssignment:
     The class makes use of the Triggers class, pd.DataFrame, and the sys and requests libraries.
     """
 
-    def __init__(
-        self, element, path, date, file_list, file_sizes, triggers_df, savefile=True
-    ):
+    def __init__(self, element, path, date, file_list, file_sizes, triggers_df, savefile=True):
         """
         Initializes the ExpAssignment object with the directory path and saves the file if specified.
 
@@ -206,7 +202,7 @@ class ExpAssignment:
         file_list: list
             List of files in a given path/directory.
         df: int
-            Dataframe of all the discharges performed during given date with together with T0 triggers.
+            Dataframe of all the discharges performed during given date with together with T0 triggers. 
         savefile: bool, optional
             A flag indicating whether to save the final DataFrame, defaults to False.
         """
@@ -221,10 +217,11 @@ class ExpAssignment:
         if savefile:
             self.save_file()
 
+
     def _make_df(self):
         """
-        Returns a DataFrame containing information about all files collected at
-        a given time in the considered directory along with their trigger time
+        Returns a DataFrame containing information about all files collected at 
+        a given time in the considered directory along with their trigger time 
         T0 and the assigned discharge number.
         """
         # Split file names and process time information
@@ -240,7 +237,7 @@ class ExpAssignment:
         # Create the DataFrame containing assigned discharge numbers
         time_data_from_files = [i for i in splitted_fnames]
         # print(time_data_from_files)
-
+        
         df = pd.DataFrame(time_data_from_files)
         df.drop(columns=df.columns[-2], axis=1, inplace=True)
         if len(df.columns) < 3:
@@ -249,8 +246,9 @@ class ExpAssignment:
         df.columns = ["date", "time", "type_of_data", "file_size"]
         df = df.astype({"file_size": int})
         df.insert(loc=0, column="file_name", value=self.file_list)
-
+        
         return df
+
 
     def _get_utc_time(self):
         """
@@ -264,10 +262,11 @@ class ExpAssignment:
         self.all_files_info_df["utc_time"] = self.all_files_info_df.apply(
             lambda row: self._convert_to_UTC(row["date"], row["time"]), axis=1
         )
-
+        
         self.all_files_info_df["discharge_nr"] = "-"
 
         return self.all_files_info_df["utc_time"].tolist()
+
 
     def _convert_to_UTC(self, date: str, time: str) -> int:
         """
@@ -286,24 +285,21 @@ class ExpAssignment:
             The UTC timestamp corresponding to the given date and time.
         """
         date = "20" + date
-
+        
         # convert European/Berlin timezonee to UTC
-        from_zone = tz.gettz("Europe/Berlin")
-        to_zone = tz.gettz("UTC")
-        discharge_time = (
-            datetime.strptime(f"{date} {time}", "%Y%m%d %H%M%S")
-            .replace(tzinfo=from_zone)
-            .astimezone(to_zone)
-        )
-
+        from_zone =  tz.gettz('Europe/Berlin')
+        to_zone = tz.gettz('UTC')
+        discharge_time = datetime.strptime(f"{date} {time}", "%Y%m%d %H%M%S").replace(tzinfo=from_zone).astimezone(to_zone)
+        
         # convert UTC time to ns
         utc_time_in_ns = (
             int(round(calendar.timegm(discharge_time.utctimetuple()))) * 1_000_000_000
             + discharge_time.microsecond * 1_000
         )
-
+        
         return utc_time_in_ns
 
+    
     def assign_exp_nr(self):
         """
         Assigns the discharge number to each data point in `self.all_files_info_df` based on its `utc_time`.
@@ -318,10 +314,10 @@ class ExpAssignment:
 
         If there is no discharge registered during the day, a message is printed with the date.
         """
-
-        ### dodac warunki
+        
+        ### dodac warunki 
         dic = {}
-        for idx_df_total, row_total in self.all_files_info_df.iterrows():
+        for idx_df_total, row_total in self.all_files_info_df.iterrows(): 
             for (
                 idx_df_triggers,
                 row_triggers,
@@ -337,68 +333,58 @@ class ExpAssignment:
                         ):
                             dic[idx_df_total] = row_triggers["discharge_nr"]
                             continue
-
-                    elif (row_total.file_size > 10) and (
-                        self.triggers_df["T6"].loc[idx_df_triggers - 1]
-                        < row_total["utc_time"]
-                        < self.triggers_df["T6"].loc[idx_df_triggers]
-                    ):
+                        
+                    elif (row_total.file_size > 10) and ( self.triggers_df["T1"].loc[idx_df_triggers - 1] < row_total["utc_time"]  < self.triggers_df["T1"].loc[idx_df_triggers]):
+                        dic[idx_df_total] = row_triggers["discharge_nr"] - 1
+                        continue
+                    elif (row_total.file_size > 10) and ( self.triggers_df["T6"].loc[idx_df_triggers - 1] < row_total["utc_time"]  < self.triggers_df["T6"].loc[idx_df_triggers]):
                         dic[idx_df_total] = row_triggers["discharge_nr"]
-                    elif (row_total.file_size > 10) and (
-                        self.triggers_df["T1"].loc[idx_df_triggers - 1]
+
+                    elif (
+                        self.triggers_df["T6"].loc[idx_df_triggers - 1]
                         < row_total["utc_time"]
                         < self.triggers_df["T1"].loc[idx_df_triggers]
                     ):
-                        dic[idx_df_total] = row_triggers["discharge_nr"] - 1
+                        dic[idx_df_total] = row_triggers["discharge_nr"]
                 except KeyError:
                     dic[idx_df_total] = row_triggers["discharge_nr"]
-
+                    
         try:
-            self.all_files_info_df["discharge_nr"].loc[
-                np.array([i for i in dic.keys()])
-            ] = np.array([i for i in dic.values()])
+            self.all_files_info_df["discharge_nr"].loc[np.array([i for i in dic.keys()])] = np.array([i for i in dic.values()])
         except ValueError:
             print(f"\n{self.date} - no discharges registered during the day!\n")
 
     def save_file(self):
         destination = pathlib.Path.cwd() / "discharge_numbers"
         destination.mkdir(parents=True, exist_ok=True)
-        self.all_files_info_df.to_csv(
-            destination / f"{self.element}-{self.date}.csv", sep=","
-        )
-
+        self.all_files_info_df.to_csv(destination / f"{self.element}-{self.date}.csv", sep=",")
+        print("Experimental numbers saved!")
 
 def get_all_subdirectories(element):
     """
     Retrieves all subdirectories in a given directory.
     """
-    path = (
-        pathlib.Path(__file__).parent.parent.resolve()
-        / "__Experimental_data"
-        / "data"
-        / element
-    )
-    # path = pathlib.Path(__file__).parent.parent.resolve() / "__Experimental_data" / "data"/  "test"/element
+    # path = pathlib.Path(__file__).parent.parent.resolve() / "__Experimental_data" / "data"/  element 
+    path = pathlib.Path(__file__).parent.parent.resolve() / "__Experimental_data" / "data"/  "test" / element 
     sub_dirs = [f for f in path.iterdir() if f.is_dir() and f.name[0] != (".")]
-
+    
     return sub_dirs
 
 
 if __name__ == "__main__":
-    elements = ["C"]  # , "C"]
+    elements = ["C"]#, "C"]
     for element in elements:
+            
         list_of_directories = get_all_subdirectories(element)
-
+        
         for dir_ in list_of_directories:
             files = Files(dir_)
             date = files.date
             directory = files.directory
             file_list = files.file_list
             file_sizes = files.file_sizes
-            if len(file_list) == 0:
+            if len(file_list)==0:
                 continue
             t = Triggers(date)
             df = t.df
-            exp_ass = ExpAssignment(
-                element, directory, date, file_list, file_sizes, df, savefile=True
-            )
+            exp_ass = ExpAssignment(element, directory,date, file_list, file_sizes, df, savefile = True)
