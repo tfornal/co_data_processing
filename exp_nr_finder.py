@@ -168,24 +168,36 @@ class ExpAssignment:
             (self.all_files_info_df["date"] == "230215")
             & (self.all_files_info_df["discharge_nr"] == 61)
         ]
+        dd["frequency"] = "200"
         source = df.loc[(df["Date"] == 230215) & (df["Pulse number"] == 61)][
             "ITTE (Hz)"
         ]
         print(dd)
         print(source)
-        dd = source
-        print(dd)
-        self.all_files_info_df.loc[
+        new_df = self.all_files_info_df.loc[
             (self.all_files_info_df["date"] == "230215")
-            & (self.all_files_info_df["discharge_nr"] == 9)
+            & (self.all_files_info_df["discharge_nr"] == 61)
         ]
+        new_df["frequency"] = "200"
+        print(new_df)
 
         print(
             self.all_files_info_df.loc[
                 (self.all_files_info_df["date"] == "230215")
-                & (self.all_files_info_df["discharge_nr"] == 9)
+                & (self.all_files_info_df["discharge_nr"] == 61)
             ]
         )
+        self.all_files_info_df.loc[
+            (self.all_files_info_df["date"] == "230215")
+            & (self.all_files_info_df["discharge_nr"] == 61)
+        ]["frequency"] = 200
+        print(
+            self.all_files_info_df.loc[
+                (self.all_files_info_df["date"] == "230215")
+                & (self.all_files_info_df["discharge_nr"] == 61)
+            ]["frequency"]
+        )
+
         return df
 
     def assign_frequency(self):
