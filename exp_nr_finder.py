@@ -1,5 +1,4 @@
 """
-tfornal
 The code must contain only the data folder containing the corresponding folders 
 in "YYMMDD" format. Subsequent sub-folders (with their names in YYMMDD format) 
 must contain the data recorded by the C/O monitor system (in *.dat format) .
@@ -53,7 +52,10 @@ class ExpAssignment:
         self.triggers_df = triggers_df
         self.all_files_info_df = self._make_df()
         self.utc_time = self._get_utc_time()
+
         self.assign_exp_nr()
+        self.assign_frequency()
+        self.cammera_frequency = self.get_frequency()
         if savefile:
             self.save_file()
 
@@ -140,7 +142,54 @@ class ExpAssignment:
 
         return utc_time_in_ns
 
+    def find_record(self):
+        pass
+
     def calc_start_time(self):
+        pass
+
+    def get_frequency(self):
+        data_file = (
+            pathlib.Path(__file__).parent.parent.resolve()
+            / "__Experimental_data"
+            / f"{self.element}-camera_setups.csv"
+        )
+        with open(data_file, "r") as data:
+            df = pd.read_csv(
+                data, sep=",", usecols=["Date", "Pulse number", "ITTE (Hz)"]
+            )
+            df["Date"] = df["Date"].str.replace(".", "")
+            df["Date"] = df["Date"].str[2:]
+            df = df.astype({"Date": int})
+            print(df)
+            print(self.all_files_info_df)
+            df["Date"]
+        dd = self.all_files_info_df.loc[
+            (self.all_files_info_df["date"] == "230215")
+            & (self.all_files_info_df["discharge_nr"] == 61)
+        ]
+        source = df.loc[(df["Date"] == 230215) & (df["Pulse number"] == 61)][
+            "ITTE (Hz)"
+        ]
+        print(dd)
+        print(source)
+        dd = source
+        print(dd)
+        self.all_files_info_df.loc[
+            (self.all_files_info_df["date"] == "230215")
+            & (self.all_files_info_df["discharge_nr"] == 9)
+        ]
+
+        print(
+            self.all_files_info_df.loc[
+                (self.all_files_info_df["date"] == "230215")
+                & (self.all_files_info_df["discharge_nr"] == 9)
+            ]
+        )
+        return df
+
+    def assign_frequency(self):
+        self.all_files_info_df["frequency"] = 0
         pass
 
     def assign_exp_nr(self):
@@ -251,3 +300,4 @@ if __name__ == "__main__":
             exp_ass = ExpAssignment(
                 element, directory, date, file_list, file_sizes, df, savefile=True
             )
+            break

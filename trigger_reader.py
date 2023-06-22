@@ -1,7 +1,3 @@
-"""
-Created on Wed Jun 21 16:41:11 2023
-@author: tofo
-"""
 from datetime import datetime
 import calendar
 import requests
