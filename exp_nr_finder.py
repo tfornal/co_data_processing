@@ -52,10 +52,11 @@ class ExpAssignment:
         self.triggers_df = triggers_df
         self.all_files_info_df = self._make_df()
         self.utc_time = self._get_utc_time()
-
         self.assign_exp_nr()
+
         self.assign_frequency()
-        self.cammera_frequency = self.get_frequency()
+        self.cammera_frequency = self.get_frequency(self.date, 61)
+
         if savefile:
             self.save_file()
 
@@ -148,7 +149,7 @@ class ExpAssignment:
     def calc_start_time(self):
         pass
 
-    def get_frequency(self):
+    def get_frequency(self, date, exp_nr):
         data_file = (
             pathlib.Path(__file__).parent.parent.resolve()
             / "__Experimental_data"
@@ -158,45 +159,29 @@ class ExpAssignment:
             df = pd.read_csv(
                 data, sep=",", usecols=["Date", "Pulse number", "ITTE (Hz)"]
             )
-            df["Date"] = df["Date"].str.replace(".", "")
-            df["Date"] = df["Date"].str[2:]
             df = df.astype({"Date": int})
-            print(df)
-            print(self.all_files_info_df)
-            df["Date"]
-        dd = self.all_files_info_df.loc[
-            (self.all_files_info_df["date"] == "230215")
-            & (self.all_files_info_df["discharge_nr"] == 61)
-        ]
-        dd["frequency"] = "200"
-        source = df.loc[(df["Date"] == 230215) & (df["Pulse number"] == 61)][
+        source = df.loc[(df["Date"] == int(date)) & (df["Pulse number"] == exp_nr)][
             "ITTE (Hz)"
         ]
-        print(dd)
-        print(source)
-        new_df = self.all_files_info_df.loc[
-            (self.all_files_info_df["date"] == "230215")
-            & (self.all_files_info_df["discharge_nr"] == 61)
-        ]
-        new_df["frequency"] = "200"
-        print(new_df)
-
-        print(
-            self.all_files_info_df.loc[
-                (self.all_files_info_df["date"] == "230215")
-                & (self.all_files_info_df["discharge_nr"] == 61)
-            ]
-        )
         self.all_files_info_df.loc[
             (self.all_files_info_df["date"] == "230215")
-            & (self.all_files_info_df["discharge_nr"] == 61)
-        ]["frequency"] = 200
-        print(
-            self.all_files_info_df.loc[
-                (self.all_files_info_df["date"] == "230215")
-                & (self.all_files_info_df["discharge_nr"] == 61)
-            ]["frequency"]
-        )
+            & (self.all_files_info_df["discharge_nr"] == 61),
+            "frequency",
+        ] = 200
+
+        for index, row in self.all_files_info_df.iterrows():
+            filtered_df = df.loc[
+                (df["Date"] == int(f"20{row['date']}"))
+                & (df["Pulse number"] == row["discharge_nr"]),
+                "ITTE (Hz)",
+            ]
+
+            if not filtered_df.empty:
+                wartosc = filtered_df.iloc[0]
+                self.all_files_info_df.at[index, "frequency"] = wartosc
+            else:
+                self.all_files_info_df.at[index, "frequency"] = 200
+        print(self.all_files_info_df)
 
         return df
 
@@ -281,14 +266,13 @@ def get_all_subdirectories(element):
     """
     Retrieves all subdirectories in a given directory.
     """
-    # path = pathlib.Path(__file__).parent.parent.resolve() / "__Experimental_data" / "data"/  element
     path = (
         pathlib.Path(__file__).parent.parent.resolve()
         / "__Experimental_data"
         / "data"
-        / "test"
         / element
     )
+    # path = pathlib.Path(__file__).parent.parent.resolve() / "__Experimental_data" / "data"/  "test" / element
     sub_dirs = [f for f in path.iterdir() if f.is_dir() and f.name[0] != (".")]
 
     return sub_dirs
@@ -312,4 +296,4 @@ if __name__ == "__main__":
             exp_ass = ExpAssignment(
                 element, directory, date, file_list, file_sizes, df, savefile=True
             )
-            break
+            # break
