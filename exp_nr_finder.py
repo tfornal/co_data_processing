@@ -272,7 +272,6 @@ def get_all_subdirectories(element):
         / "data"
         / element
     )
-    # path = pathlib.Path(__file__).parent.parent.resolve() / "__Experimental_data" / "data"/  "test" / element
     sub_dirs = [f for f in path.iterdir() if f.is_dir() and f.name[0] != (".")]
 
     return sub_dirs
