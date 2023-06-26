@@ -1,10 +1,3 @@
-"""
-The code must contain only the data folder containing the corresponding folders 
-in "YYMMDD" format. Subsequent sub-folders (with their names in YYMMDD format) 
-must contain the data recorded by the C/O monitor system (in *.dat format) .
-"""
-
-
 import pathlib
 from dateutil import tz
 from datetime import datetime
