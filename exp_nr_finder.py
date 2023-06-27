@@ -22,22 +22,6 @@ class ExpAssignment:
     def __init__(
         self, element, path, date, file_list, file_sizes, triggers_df, savefile=False
     ):
-        """
-        Initializes the ExpAssignment object with the directory path and saves the file if specified.
-
-        Parameters:
-        -----------
-        path: Path
-            A Path object representing the directory containing the data files.
-        date: int
-            A date for which the set of experimental discharges numbers will be assigned.
-        file_list: list
-            List of files in a given path/directory.
-        df: int
-            Dataframe of all the discharges performed during given date with together with T0 triggers.
-        savefile: bool, optional
-            A flag indicating whether to save the final DataFrame, defaults to False.
-        """
         self.element = element
         self.date = date
         self.file_list = file_list
