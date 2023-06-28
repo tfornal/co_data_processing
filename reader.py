@@ -37,7 +37,7 @@ def get_spectrum(binary_file, cols_number, row):
 def integrate_spectrum(spectrum, range_):
     line = spectrum[range_[0] : range_[-1]]
     background = min(line[0], line[-1])
-    ### removes the background level (do not mistakenly take as a noise level)
+    ### removes the background level (do not mistakenly take as a noise level!)
     line -= background
     pixels = np.linspace(range_[0], range_[1] - 1, num=range_[1] - range_[0])
     integral = integrate.simps(line, pixels)
@@ -109,6 +109,35 @@ def get_all_spectra(file_name, lineRange, time_interval, dt):
     return spec_in_time
 
 
+def generate_utc_timestamps(selected_time_stamps):
+    return len(selected_time_stamps)
+
+
+def get_utc_from_csv(element, date, exp_nr):
+    import pathlib
+
+    data_file = (
+        pathlib.Path(__file__).parent.parent.resolve()
+        / "data_processing"
+        / "discharge_numbers"
+        / f"{element}-{date}.csv"
+    )
+    with open(data_file, "r") as data:
+        df = pd.read_csv(
+            data, sep=",", usecols=["file_name", "date", "discharge_nr", "utc_time"]
+        )
+        df = df.astype({"date": int})
+    print(df)
+    fname = df.loc[(df["date"] == int(date[2:])) & (df["discharge_nr"] == exp_nr)][
+        "file_name"
+    ]
+    print(fname)
+    utc_time = df.loc[(df["date"] == int(date[2:])) & (df["discharge_nr"] == exp_nr)][
+        "utc_time"
+    ]
+    print(utc_time)
+
+
 def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, dt, plotter):
     start_time = time.time()
     integral_line_range = {"C": [120, 990], "O": [190, 941]}
@@ -116,13 +145,10 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, dt, pl
     range_ = integral_line_range[f"{element}"]
     cwd = Path.cwd()
 
-    file_name = f"{element}-{date}.csv"
-    path = cwd / "discharge_numbers"
+    file_path = cwd / "discharge_numbers" / f"{element}-{date}.csv"
 
-    total_f_name = path / file_name
-    df = pd.read_csv(total_f_name, sep=",")
+    df = pd.read_csv(file_path, sep=",")
     df = df[df["discharge_nr"] == discharge_nr]
-    breakpoint()
     selected_file_names = df["file_name"].to_list()
 
     if not selected_file_names:
@@ -150,8 +176,6 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, dt, pl
     bgr_files = [x for x in file_list if "BGR" in x.stem in selected_file_names]
 
     for file_name in discharge_files:
-        print(file_name)
-
         spectra = get_all_spectra(file_name, range_, time_interval, dt)
         ### takes last recorded noise signal before the discharge
         bgr_file_name, bgr_spec = get_BGR(bgr_files[-1])
@@ -161,6 +185,12 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, dt, pl
         selected_time_stamps = generate_time_stamps(time_interval, dt)[
             : spectra_without_bgr.shape[1]
         ]
+
+        #
+        xxx = generate_utc_timestamps(selected_time_stamps)
+        print(xxx)
+
+        dataframe = get_utc_from_csv(element, date, discharge_nr)
 
         # intensity = list(map(lambda row: get_spectrum(binary_file, cols_number, row), range(idx_start, idx_end + 1)))
         # intensity = list(map(lambda range_: integrate_spectrum(spectra_without_bgr, range_), range_))############################ zmapowac ponizsza petle
