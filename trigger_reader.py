@@ -143,8 +143,8 @@ class Triggers:
         return df
 
     def save_file(self):
-        """Saves the pandas DataFrame as a csv file with the format "YYMMDD_programs.csv"."""
-        destination = pathlib.Path.cwd() / "experimental_programs"
+        """Saves the pandas DataFrame as a csv file with the format "YYMMDD_triggers.csv"."""
+        destination = pathlib.Path.cwd() / "program_triggers"
         destination.mkdir(parents=True, exist_ok=True)
-        self.df.to_csv(destination / f"{self.date}_programs.csv")
+        self.df.to_csv(destination / f"{self.date}_triggers.csv")
         print("Triggers successfully saved!")

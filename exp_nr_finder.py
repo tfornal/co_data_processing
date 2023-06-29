@@ -1,3 +1,10 @@
+"""
+The code must contain only the data folder containing the corresponding folders 
+in "YYMMDD" format. Subsequent sub-folders (with their names in YYMMDD format) 
+must contain the data recorded by the C/O monitor system (in *.dat format) .
+"""
+
+
 import pathlib
 from dateutil import tz
 from datetime import datetime
@@ -6,6 +13,7 @@ import calendar
 import pandas as pd
 from file_reader import Files
 from trigger_reader import Triggers
+
 
 pd.options.mode.chained_assignment = None  # default='warn'
 
@@ -22,6 +30,22 @@ class ExpAssignment:
     def __init__(
         self, element, path, date, file_list, file_sizes, triggers_df, savefile=False
     ):
+        """
+        Initializes the ExpAssignment object with the directory path and saves the file if specified.
+
+        Parameters:
+        -----------
+        path: Path
+            A Path object representing the directory containing the data files.
+        date: int
+            A date for which the set of experimental discharges numbers will be assigned.
+        file_list: list
+            List of files in a given path/directory.
+        df: int
+            Dataframe of all the discharges performed during given date with together with T0 triggers.
+        savefile: bool, optional
+            A flag indicating whether to save the final DataFrame, defaults to False.
+        """
         self.element = element
         self.date = date
         self.file_list = file_list
@@ -80,7 +104,6 @@ class ExpAssignment:
         self.all_files_info_df["utc_time"] = self.all_files_info_df.apply(
             lambda row: self._convert_to_UTC(row["date"], row["time"]), axis=1
         )
-
         self.all_files_info_df["discharge_nr"] = "-"
 
         return self.all_files_info_df["utc_time"].tolist()
@@ -120,12 +143,6 @@ class ExpAssignment:
 
         return utc_time_in_ns
 
-    def find_record(self):
-        pass
-
-    def calc_start_time(self):
-        pass
-
     def get_frequency(self, date, exp_nr):
         data_file = (
             pathlib.Path(__file__).parent.parent.resolve()
@@ -136,13 +153,15 @@ class ExpAssignment:
             df = pd.read_csv(
                 data, sep=",", usecols=["Date", "Pulse number", "ITTE (Hz)"]
             )
+            print(date)
+            breakpoint()
             df = df.astype({"Date": int})
         source = df.loc[(df["Date"] == int(date)) & (df["Pulse number"] == exp_nr)][
             "ITTE (Hz)"
         ]
         self.all_files_info_df.loc[
-            (self.all_files_info_df["date"] == "230215")
-            & (self.all_files_info_df["discharge_nr"] == 61),
+            (self.all_files_info_df["date"] == f"{date[2:]}")
+            & (self.all_files_info_df["discharge_nr"] == exp_nr),
             "frequency",
         ] = 200
 
@@ -163,8 +182,8 @@ class ExpAssignment:
         return df
 
     def assign_frequency(self):
+        ### wstepnie ustala czestotliwosc probkowania na 0 hz
         self.all_files_info_df["frequency"] = 0
-        pass
 
     def assign_exp_nr(self):
         """
@@ -249,13 +268,14 @@ def get_all_subdirectories(element):
         / "data"
         / element
     )
+    # path = pathlib.Path(__file__).parent.parent.resolve() / "__Experimental_data" / "data"/  "test" / element
     sub_dirs = [f for f in path.iterdir() if f.is_dir() and f.name[0] != (".")]
 
     return sub_dirs
 
 
 if __name__ == "__main__":
-    elements = ["C"]  # , "C"]
+    elements = ["O"]  # , "C"]
     for element in elements:
         list_of_directories = get_all_subdirectories(element)
 
