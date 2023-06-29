@@ -5,6 +5,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import time
 from functools import wraps
+from dateutil import tz
+import pathlib
 
 
 def timer(function):
@@ -109,11 +111,7 @@ def get_all_spectra(file_name, lineRange, time_interval, dt):
     return spec_in_time
 
 
-def generate_utc_timestamps(selected_time_stamps):
-    return len(selected_time_stamps)
-
-
-def get_utc_from_csv(element, date, exp_nr):
+def get_utc_from_csv(file_name, element, date):
     import pathlib
 
     data_file = (
@@ -124,21 +122,33 @@ def get_utc_from_csv(element, date, exp_nr):
     )
     with open(data_file, "r") as data:
         df = pd.read_csv(
-            data, sep=",", usecols=["file_name", "date", "discharge_nr", "utc_time"]
+            data,
+            sep=",",
+            usecols=["file_name", "date", "discharge_nr", "utc_time", "frequency"],
         )
         df = df.astype({"date": int})
-    print(df)
-    fname = df.loc[(df["date"] == int(date[2:])) & (df["discharge_nr"] == exp_nr)][
-        "file_name"
-    ]
-    print(fname)
-    utc_time = df.loc[(df["date"] == int(date[2:])) & (df["discharge_nr"] == exp_nr)][
-        "utc_time"
-    ]
-    print(utc_time)
+        exp_info = df.loc[df["file_name"] == file_name.stem]
+
+    return exp_info
 
 
-def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, dt, plotter):
+def convert_frequency_to_dt(frequency):
+    return 1 / frequency
+
+
+def calc_utc_timestamps(utc_time, selected_time_stamps, dt):
+    frames_nr = len(selected_time_stamps)
+    ns_time_stamps = [int(i * dt * 1e9) for i in range(frames_nr)]
+    ns_time_stamps.reverse()
+    removed = [utc_time - i for i in ns_time_stamps]
+
+    return removed
+
+
+##### dodatkowo wyliczyc timestampy w odenisieniu do triggerow i wrzucic na wykresy!!!!!
+
+
+def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotter):
     start_time = time.time()
     integral_line_range = {"C": [120, 990], "O": [190, 941]}
 
@@ -150,7 +160,7 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, dt, pl
     df = pd.read_csv(file_path, sep=",")
     df = df[df["discharge_nr"] == discharge_nr]
     selected_file_names = df["file_name"].to_list()
-
+    print(selected_file_names)
     if not selected_file_names:
         print("No discharge!")
         return None
@@ -174,8 +184,14 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, dt, pl
         and "BGR" not in x.stem
     ]
     bgr_files = [x for x in file_list if "BGR" in x.stem in selected_file_names]
-
     for file_name in discharge_files:
+        exp_info = get_utc_from_csv(file_name, element, date)
+        utc_time = int(exp_info["utc_time"])
+        print(utc_time)
+        discharge_nr = int(exp_info["discharge_nr"])
+        frequency = int(exp_info["frequency"])
+        dt = convert_frequency_to_dt(frequency)
+
         spectra = get_all_spectra(file_name, range_, time_interval, dt)
         ### takes last recorded noise signal before the discharge
         bgr_file_name, bgr_spec = get_BGR(bgr_files[-1])
@@ -186,11 +202,9 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, dt, pl
             : spectra_without_bgr.shape[1]
         ]
 
-        #
-        xxx = generate_utc_timestamps(selected_time_stamps)
-        print(xxx)
+        time_stamps = calc_utc_timestamps(utc_time, selected_time_stamps, dt)
 
-        dataframe = get_utc_from_csv(element, date, discharge_nr)
+        print(str(exp_info["file_name"]))
 
         # intensity = list(map(lambda row: get_spectrum(binary_file, cols_number, row), range(idx_start, idx_end + 1)))
         # intensity = list(map(lambda range_: integrate_spectrum(spectra_without_bgr, range_), range_))############################ zmapowac ponizsza petle
@@ -203,9 +217,25 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, dt, pl
         df2 = pd.DataFrame()
         df2["time"] = selected_time_stamps
         df2["intensity"] = intensity
+        df2["utc_timestamps"] = time_stamps
         df2 = df2.iloc[
             1:
         ]  ### usuwa p[ierwsza ramke w czasie 0s -> w celu usuniecia niefizycznych wartosci
+        print(df2)
+
+        def save_file():
+            destination = (
+                pathlib.Path.cwd() / "time_evolutions" / f"{element}" / f"{date}"
+            )
+            destination.mkdir(parents=True, exist_ok=True)
+            df2.to_csv(
+                destination
+                / f"{element}-{date}-exp_{discharge_nr}-{file_name.stem}.csv",
+                sep=",",
+            )
+            print("Saved!")
+
+        save_file()
 
         def plot():
             ax = df2.plot(
