@@ -5,9 +5,10 @@ import pathlib
 
 start = time.time()
 
-elements = ["O"]
+elements = ["C", "O"]
 date = "20230214"
-discharges = [i for i in range(100)]
+# discharges = [i for i in range(100)]
+discharges = [49]
 time_interval = [0, 600]
 
 
