@@ -22,14 +22,22 @@ class Triggers:
         savefile : bool, optional
             Whether the processed data should be saved as a csv file, by default False.
         """
-
-        self.date = date
+        self.date = str(date)
+        self.year, self.month, self.day = self.convert_date(self.date)
         self.beginning_of_the_day, self.end_of_the_day = self._convert_to_UTC()
         self.url = self._get_url()
-        self.list_of_discharges, self.T0, self.T1, self.T6 = self._get_triggers_utc()
+        self.triggers = self._get_triggers_utc()
         self.df = self._create_df()
         if savefile:
             self.save_file()
+
+    def convert_date(self, date):
+        year, month, day = (
+            int(date[:4]),
+            int(date[4:6]),
+            int(date[6:]),
+        )
+        return year, month, day
 
     def _convert_to_UTC(self):
         """
@@ -41,14 +49,8 @@ class Triggers:
             A tuple of two integers representing the UTC timestamps for the start and end of the day of the `date` passed as parameter.
         """
 
-        year, month, day = (
-            int(self.date[:4]),
-            int(self.date[4:6]),
-            int(self.date[6:]),
-        )
-        # breakpoint()
-        beginning_of_the_day = datetime(year, month, day, 0, 0, 0, 0)
-        finish_of_the_day = datetime(year, month, day, 23, 59, 59, 0)
+        beginning_of_the_day = datetime(self.year, self.month, self.day, 0, 0, 0, 0)
+        finish_of_the_day = datetime(self.year, self.month, self.day, 23, 59, 59, 0)
 
         beginning_of_the_day = (
             int(round(calendar.timegm(beginning_of_the_day.timetuple())))
@@ -78,79 +80,94 @@ class Triggers:
         Returns the discharge numbers and start of each discharge in UTC timestamps for the day of the `date` passed as parameter.
         """
 
-        tab_startow = []
-        tab_konca = []
-        T0 = []
-        T1 = []
-        T6 = []
+        triggers = {"T0": [], "T1": [], "T6": []}
 
-        wywolanie_dnia = requests.get(self.url)
-        number_of_discharges = len(wywolanie_dnia.json()["programs"])
-        print(f"Number of discharges on 20{self.date}:", number_of_discharges)
+        api_response = requests.get(self.url)
+        nr_of_shots = len(api_response.json()["programs"])
+        print(f"Number of discharges on 20{self.date}:", nr_of_shots)
 
-        for discharge_nr in range(number_of_discharges):
-            pole_poczatek = wywolanie_dnia.json()["programs"][discharge_nr]["from"]
-            tab_startow.append(pole_poczatek)
-            pole_koniec = wywolanie_dnia.json()["programs"][discharge_nr]["upto"]
-            tab_konca.append(pole_koniec)
+        for shot in range(nr_of_shots):
             try:
-                start_program = wywolanie_dnia.json()["programs"][discharge_nr][
-                    "trigger"
-                ]["0"][0]
+                response = api_response.json()["programs"][shot]["trigger"]["0"][0]
+                triggers["T0"].append(response)
             except (IndexError, TypeError):
-                start_program = 0
+                triggers["T0"].append(0)
 
             try:
-                start_ecrh = wywolanie_dnia.json()["programs"][discharge_nr]["trigger"][
-                    "1"
-                ][0]
+                response = api_response.json()["programs"][shot]["trigger"]["1"][0]
+                triggers["T1"].append(response)
             except (IndexError, TypeError):
-                if start_program == 0:
-                    start_ecrh = 0
+                if response == 0:
+                    triggers["T1"].append(0)
                 else:
-                    start_ecrh = (
-                        start_program + 60_000_000_000
+                    triggers["T1"].append(
+                        response + 60_000_000_000
                     )  ### dodac 60s od startu ECRH
-                # start_ecrh = 0 #### sprawdzic wszystkie
 
             try:
-                end_of_program = wywolanie_dnia.json()["programs"][discharge_nr][
-                    "trigger"
-                ]["6"][0]
+                response = api_response.json()["programs"][shot]["trigger"]["6"][0]
+                triggers["T6"].append(response)
             except (IndexError, TypeError):
-                end_of_program = 0
-            T0.append(start_program)
-            T1.append(start_ecrh)
-            T6.append(end_of_program)
-        list_of_discharges = np.arange(1, number_of_discharges + 1)
-        return list_of_discharges, T0, T1, T6
+                triggers["T6"].append(0)
+
+        #### backup
+        # for shot in range(nr_of_shots):
+
+        #     try:
+        #         start_program = api_response.json()["programs"][shot]["trigger"][
+        #             "0"
+        #         ][0]
+        #     except (IndexError, TypeError):
+        #         start_program = 0
+
+        #     try:
+        #         start_ecrh = api_response.json()["programs"][shot]["trigger"][
+        #             "1"
+        #         ][0]
+        #     except (IndexError, TypeError):
+        #         if start_program == 0:
+        #             start_ecrh = 0
+        #         else:
+        #             start_ecrh = start_program + 60_000_000_000 ### dodac 60s od startu ECRH
+        #         # start_ecrh = 0 #### sprawdzic wszystkie
+
+        #     try:
+        #         end_of_program = api_response.json()["programs"][shot]["trigger"][
+        #             "6"
+        #         ][0]
+        #     except (IndexError, TypeError):
+        #         end_of_program = 0
+        #     T0.append(start_program)
+        #     T1.append(start_ecrh)
+        #     T6.append(end_of_program)
+        # list_of_discharges = np.arange(1, nr_of_shots + 1)
+        # breakpoint()
+        return triggers
 
     def _create_df(self):
-        """Creates a pandas DataFrame from the processed triggers data.
+        """Creates a pandas DataFrame from the processed triggers data."""
+        new_date_fmt = str(self.year) + str(self.month) + str(self.day)
+        breakpoint()
+        df = pd.DataFrame()
 
-        Returns
-        -------
-        _type_
-            _description_
-        """
-        new_date_fmt = self.date[:2] + self.date[2:4] + self.date[4:]
-        df = pd.DataFrame(columns=["date", "discharge_nr", "T0"])
-        df["discharge_nr"] = self.list_of_discharges.astype(int)
-        df["T0"] = self.T0
-        df["T1"] = self.T1
-        df["T6"] = self.T6
         df["date"] = new_date_fmt
+        df["discharge_nr"] = [i for i in range(1, len(self.triggers["T0"]) + 1)]
+
+        df["T0"] = self.triggers["T0"]
+        df["T1"] = self.triggers["T1"]
+        df["T6"] = self.triggers["T6"]
+        breakpoint()
+        print(df)
         return df
 
-    def save_file(self):
-        destination = pathlib.Path.cwd() / "program_triggers"
-        destination.mkdir(parents=True, exist_ok=True)
-        self.df.to_csv(destination / f"{self.date}_triggers.csv")
-        print("Triggers successfully saved!")
-
-
-date = "20230215"
+    # def save_file(self):
+    #     destination = pathlib.Path.cwd() / "program_triggers"
+    #     destination.mkdir(parents=True, exist_ok=True)
+    #     self.df.to_csv(destination / f"{self.date}_triggers.csv")
+    #     print("Triggers successfully saved!")
 
 
 if __name__ == "__main__":
-    t = Triggers(date)
+    # date = 20230215
+    date = "20230215"
+    Triggers(date, savefile=False)
