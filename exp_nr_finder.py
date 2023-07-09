@@ -43,17 +43,13 @@ class ExpAssignment:
         self.utc_time = self.get_UTC_time()
 
         self.assign_discharge_nr()
-
         self.cammera_frequency = self.get_frequency()
+
         if savefile:
             self.save_file()
 
-    def _get_triggers(self):
-        t = Triggers(self.date)
-        return t.triggers_df
-
-    def _get_date_from_files(self):
-        return self.fobject.date
+    def _get_file_object(self):
+        return Files(self.path)
 
     def _get_file_list(self):
         return self.fobject.file_list
@@ -61,8 +57,12 @@ class ExpAssignment:
     def _get_file_sizes(self):
         return self.fobject.file_sizes
 
-    def _get_file_object(self):
-        return Files(self.path)
+    def _get_date_from_files(self):
+        return self.fobject.date
+
+    def _get_triggers(self):
+        t = Triggers(self.date)
+        return t.triggers_df
 
     def retrieve_file_info(self):
         splitted_fnames = []
@@ -86,13 +86,18 @@ class ExpAssignment:
         """
         splitted_fnames = self.retrieve_file_info()
         df = pd.DataFrame(splitted_fnames)
-        df.drop(columns=df.columns[-2], axis=1, inplace=True)
-        if len(df.columns) < 3:
-            df["type_of_data"] = None
+        if len(df.columns) == 4:
+            df.drop(df.columns[-2], axis=1, inplace=True)
+        elif len(df.columns) == 3:
+            df.drop(df.columns[-1], axis=1, inplace=True)
+            df["type_of_data"] = "spectrum"
+
+        df = df.fillna("spectrum")
         df["file_size"] = self.file_sizes
         df.columns = ["date", "time", "type_of_data", "file_size"]
         df = df.astype({"file_size": int})
         df.insert(loc=0, column="file_name", value=self.file_list)
+
         return df
 
     def get_UTC_time(self):
@@ -129,6 +134,7 @@ class ExpAssignment:
         """
 
         date = "20" + date
+
         # convert European/Berlin timezonee to UTC
         from_zone = tz.gettz("Europe/Berlin")
         to_zone = tz.gettz("UTC")
@@ -145,49 +151,6 @@ class ExpAssignment:
         )
 
         return utc_time_in_ns
-
-    def get_frequency(self):
-        setup_notes = (
-            pathlib.Path(__file__).parent.parent.resolve()
-            / "__Experimental_data"
-            / f"{self.element}-camera_setups.csv"
-        )
-        with open(setup_notes, "r") as data:
-            df = pd.read_csv(
-                data, sep=",", usecols=["date", "discharge_nr", "ITTE_frequency"]
-            )
-            df = df.astype({"date": int})
-
-        # Indeksowanie DataFrame
-        df = df.set_index(["date", "discharge_nr"])
-        self.files_info = self.files_info.set_index(["date", "discharge_nr"])
-
-        for discharge_nr in self.files_info.index.get_level_values("discharge_nr"):
-            print(discharge_nr)
-
-            if (int(self.date), discharge_nr) in df.index:
-                source = df.loc[(int(self.date), discharge_nr), "ITTE_frequency"]
-            else:
-                continue
-            self.files_info.loc[(f"{self.date[2:]}", discharge_nr), "frequency"] = 200
-
-            # Filtrowanie DataFrame przed pętlą
-            filtered_df = df.loc[
-                (
-                    df.index.get_level_values("date")
-                    == int(f"20{self.files_info.at[index, 'date']}")
-                )
-                & (
-                    df.index.get_level_values("discharge_nr")
-                    == self.files_info.at[index, "discharge_nr"]
-                ),
-                "ITTE_frequency",
-            ]
-
-            # Wykorzystanie wektoryzacji i funkcji agregujących
-            self.files_info["frequency"] = (
-                self.files_info["frequency"].fillna(filtered_df).combine_first(200)
-            )
 
     def assign_discharge_nr(self):
         """
@@ -254,10 +217,53 @@ class ExpAssignment:
         except ValueError:
             print(f"\n{self.date} - no discharges registered during the day!\n")
 
+    def get_frequency(self):
+        setup_notes = (
+            pathlib.Path(__file__).parent.parent.resolve()
+            / "__Experimental_data"
+            / f"{self.element}-camera_setups.csv"
+        )
+        with open(setup_notes, "r") as data:
+            df = pd.read_csv(
+                data, sep=",", usecols=["date", "discharge_nr", "ITTE_frequency"]
+            )
+            df = df.astype({"date": int})
+
+        # Indeksowanie DataFrame po kolumnach "date" oraz "discharge_nr" w celu
+        # szybkiego wyszukiwania po indexach / kombinacjach wartosci w 2 kolumnach
+        df = df.set_index(["date", "discharge_nr"])
+        self.files_info = self.files_info.set_index(["date", "discharge_nr"])
+
+        for discharge_nr in self.files_info.index.get_level_values("discharge_nr"):
+            if (int(self.date), discharge_nr) in df.index:
+                source = df.loc[(int(self.date), discharge_nr), "ITTE_frequency"]
+            else:
+                continue
+            self.files_info.loc[(f"{self.date[2:]}", discharge_nr), "frequency"] = 200
+
+            # Filtrowanie DataFrame przed pętlą
+            filtered_df = df.loc[
+                (
+                    df.index.get_level_values("date")
+                    == int(f"20{self.files_info.at[index, 'date']}")
+                )
+                & (
+                    df.index.get_level_values("discharge_nr")
+                    == self.files_info.at[index, "discharge_nr"]
+                ),
+                "ITTE_frequency",
+            ]
+            # Vectorization and aggregate approach
+            self.files_info["frequency"] = (
+                self.files_info["frequency"].fillna(filtered_df).combine_first(200)
+            )
+
     def save_file(self):
         destination = pathlib.Path.cwd() / "discharge_numbers"
         destination.mkdir(parents=True, exist_ok=True)
-        self.files_info.to_csv(destination / f"{self.element}-{self.date}.csv", sep=",")
+        self.files_info.to_csv(
+            destination / f"{self.element}-{self.date}.csv", sep="\t"
+        )
         print("Experimental numbers saved!")
 
 
@@ -271,14 +277,20 @@ def get_exp_data_subdirs(element):
         / "data"
         / element
     )
-    # path = pathlib.Path(__file__).parent.parent.resolve() / "__Experimental_data" / "data"/  "test" / element
+    path = (
+        pathlib.Path(__file__).parent.parent.resolve()
+        / "__Experimental_data"
+        / "data"
+        / "test"
+        / element
+    )
     sub_dirs = [f for f in path.iterdir() if f.is_dir() and f.name[0] != (".")]
 
     return sub_dirs
 
 
 if __name__ == "__main__":
-    elements = ["O"]  # , "C"]
+    elements = ["C"]  # , "C"]
     for element in elements:
         list_of_directories = get_exp_data_subdirs(element)
         for directory in list_of_directories:
