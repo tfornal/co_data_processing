@@ -43,7 +43,7 @@ class ExpAssignment:
         self.utc_time = self.get_UTC_time()
 
         self.assign_discharge_nr()
-        self.cammera_frequency = self.get_frequency()
+        self.camera_frequency = self.get_frequency()
 
         if savefile:
             self.save_file()
@@ -216,6 +216,8 @@ class ExpAssignment:
             ] = np.array([i for i in dic.values()])
         except ValueError:
             print(f"\n{self.date} - no discharges registered during the day!\n")
+        self.files_info.astype({"discharge_nr": "int32"}, errors="ignore")
+        # breakpoint()
 
     def get_frequency(self):
         setup_notes = (
@@ -234,29 +236,24 @@ class ExpAssignment:
         df = df.set_index(["date", "discharge_nr"])
         self.files_info = self.files_info.set_index(["date", "discharge_nr"])
 
-        for discharge_nr in self.files_info.index.get_level_values("discharge_nr"):
-            if (int(self.date), discharge_nr) in df.index:
-                source = df.loc[(int(self.date), discharge_nr), "ITTE_frequency"]
-            else:
-                continue
-            self.files_info.loc[(f"{self.date[2:]}", discharge_nr), "frequency"] = 200
-
-            # Filtrowanie DataFrame przed pętlą
+        for index in self.files_info.index:
+            date_value = index[0]  # Pobranie wartości z indeksu dla poziomu "date"
+            discharge_nr = index[
+                1
+            ]  # Pobranie wartości z indeksu dla poziomu "discharge_nr"
             filtered_df = df.loc[
-                (
-                    df.index.get_level_values("date")
-                    == int(f"20{self.files_info.at[index, 'date']}")
-                )
-                & (
-                    df.index.get_level_values("discharge_nr")
-                    == self.files_info.at[index, "discharge_nr"]
-                ),
+                (df.index.get_level_values("date") == int(f"20{date_value}"))
+                & (df.index.get_level_values("discharge_nr") == discharge_nr),
                 "ITTE_frequency",
             ]
-            # Vectorization and aggregate approach
-            self.files_info["frequency"] = (
-                self.files_info["frequency"].fillna(filtered_df).combine_first(200)
-            )
+
+            if not filtered_df.empty:
+                wartosc = filtered_df.iloc[0]
+                self.files_info.at[index, "frequency"] = int(wartosc)
+            else:
+                self.files_info.at[index, "frequency"] = int(200)
+            # breakpoint()
+        self.files_info = self.files_info.astype({"frequency": "int32"})
 
     def save_file(self):
         destination = pathlib.Path.cwd() / "discharge_numbers"
@@ -277,13 +274,7 @@ def get_exp_data_subdirs(element):
         / "data"
         / element
     )
-    path = (
-        pathlib.Path(__file__).parent.parent.resolve()
-        / "__Experimental_data"
-        / "data"
-        / "test"
-        / element
-    )
+    # path = pathlib.Path(__file__).parent.parent.resolve() / "__Experimental_data" / "data"/  "test" / element
     sub_dirs = [f for f in path.iterdir() if f.is_dir() and f.name[0] != (".")]
 
     return sub_dirs
