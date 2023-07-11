@@ -1,288 +1,286 @@
-"""
-The code must contain only the data folder containing the corresponding folders 
-in "YYMMDD" format. Subsequent sub-folders (with their names in YYMMDD format) 
-must contain the data recorded by the C/O monitor system (in *.dat format) .
-"""
-
-import pathlib
 from dateutil import tz
-from datetime import datetime
+from functools import wraps
+import pathlib
+import time
+
+import matplotlib.pyplot as plt
 import numpy as np
-import calendar
 import pandas as pd
-from file_reader import Files
-from triggers import Triggers
+from scipy import integrate
 
 
-pd.options.mode.chained_assignment = None  # default='warn'
+def timer(function):
+    @wraps(function)
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        result = function(*args, **kwargs)
+        print(f"Execution time is: {time.time() - start }s")
+        return result
+
+    return wrapper
 
 
-class ExpAssignment:
-    """This class performs the assignment of experiment numbers to files based on the UTC time they were created.
+def get_pixel_intens(binary_file, row, column):
+    shift = 4096 + (row - 1) * 3072 + (column - 1) * 3
+    binary_file.seek(shift)
+    bytes_ = binary_file.read(3)
+    return int.from_bytes(bytes_, "little")
 
-    This class performs the assignment of experiment numbers to files based on the UTC time they were created.
 
-    Note:
-    The class makes use of the Triggers class, pd.DataFrame, and the sys and requests libraries.
-    """
-
-    def __init__(self, element, path, savefile=False):
-        """
-        Initializes the ExpAssignment object with the directory path and saves the file if specified.
-        """
-        self.element = element
-        self.path = path
-
-        self.fobject = self._get_file_object()
-        self.file_list = self._get_file_list()
-        self.file_sizes = self._get_file_sizes()
-        self.date = self._get_date_from_files()
-        self.triggers_df = self._get_triggers()
-
-        self.files_info = self.make_df()
-        self.utc_time = self.get_UTC_time()
-
-        self.assign_discharge_nr()
-        self.camera_frequency = self.get_frequency()
-
-        if savefile:
-            self.save_file()
-
-    def _get_file_object(self):
-        return Files(self.path)
-
-    def _get_file_list(self):
-        return self.fobject.file_list
-
-    def _get_file_sizes(self):
-        return self.fobject.file_sizes
-
-    def _get_date_from_files(self):
-        return self.fobject.date
-
-    def _get_triggers(self):
-        t = Triggers(self.date)
-        return t.triggers_df
-
-    def retrieve_file_info(self):
-        splitted_fnames = []
-        for file_name, file_size in zip(self.file_list, self.file_sizes):
-            fname_parts = file_name.split("_")
-            ## change time format from 12 to 24 hour
-            if fname_parts[1].startswith("PM"):
-                hour = 12 + int(fname_parts[1][2:][:2])
-
-                fname_parts[1] = f"{hour}{fname_parts[1][4:]}"
-            elif fname_parts[1].startswith("AM"):
-                fname_parts[1] = fname_parts[1][2:]
-            splitted_fnames.append(fname_parts)
-        return splitted_fnames
-
-    def make_df(self):
-        """
-        Returns a DataFrame containing information about all files collected at
-        a given time in the considered directory along with their trigger time
-        T0 and the assigned discharge number.
-        """
-        splitted_fnames = self.retrieve_file_info()
-        df = pd.DataFrame(splitted_fnames)
-        if len(df.columns) == 4:
-            df.drop(df.columns[-2], axis=1, inplace=True)
-        elif len(df.columns) == 3:
-            df.drop(df.columns[-1], axis=1, inplace=True)
-            df["type_of_data"] = "spectrum"
-
-        df = df.fillna("spectrum")
-        df["file_size"] = self.file_sizes
-        df.columns = ["date", "time", "type_of_data", "file_size"]
-        df = df.astype({"file_size": int})
-        df.insert(loc=0, column="file_name", value=self.file_list)
-
-        return df
-
-    def get_UTC_time(self):
-        """
-        Calculates the UTC timestamp for each row of `files_info` and adds it as a new column named 'utc_time'.
-
-        Returns:
-        -------
-        List : int
-            The list of UTC timestamps for each row of `files_info`.
-        """
-        self.files_info["utc_time"] = self.files_info.apply(
-            lambda row: self._convert_human_to_UTC_ns(row["date"], row["time"]), axis=1
+def get_spectrum(binary_file, cols_number, row):
+    return list(
+        map(
+            lambda column: get_pixel_intens(binary_file, row, column + 1),
+            range(cols_number),
         )
-        self.files_info["discharge_nr"] = "-"
+    )
 
-        return self.files_info["utc_time"].tolist()
 
-    def _convert_human_to_UTC_ns(self, date: str, time: str) -> int:
-        """
-        Converts a given date and time to UTC timestamp in nanoseconds.
+def integrate_spectrum(spectrum, range_):
+    line = spectrum[range_[0] : range_[-1]]
+    background = min(line[0], line[-1])
+    ### removes the background level (do not mistakenly take as a noise level!)
+    line -= background
+    pixels = np.linspace(range_[0], range_[1] - 1, num=range_[1] - range_[0])
+    integral = integrate.simps(line, pixels)
 
-        Parameters:
-        ----------
-        date : str
-            A string representation of the date in YYMMDD format.
-        time : str
-            A string representation of the time in HHMMSS format.
+    return integral
 
-        Returns:
-        -------
-        int
-            The UTC timestamp in nanoseconds corresponding to the given date and time.
-        """
 
-        date = "20" + date
+def get_det_size(binary_file):
+    binary_file.seek(0)
+    bajty = binary_file.read(4)
+    ncols = int.from_bytes(bajty, "little")
 
-        # convert European/Berlin timezonee to UTC
-        from_zone = tz.gettz("Europe/Berlin")
-        to_zone = tz.gettz("UTC")
-        discharge_time = (
-            datetime.strptime(f"{date} {time}", "%Y%m%d %H%M%S")
-            .replace(tzinfo=from_zone)
-            .astimezone(to_zone)
-        )
+    binary_file.seek(4)
+    bajty = binary_file.read(4)
+    nrows = int.from_bytes(bajty, "little")
+    return nrows, ncols
 
-        # convert UTC time to ns
-        utc_time_in_ns = (
-            int(round(calendar.timegm(discharge_time.utctimetuple()))) * 1_000_000_000
-            + discharge_time.microsecond * 1_000
-        )
 
-        return utc_time_in_ns
+def generate_time_stamps(time_interval, dt):
+    start, end = time_interval
+    selected_time_stamps = [
+        "{:.3f}".format(i) for i in np.arange(start, end + dt / 100, dt)
+    ]
+    # print(selected_time_stamps)
+    return selected_time_stamps
 
-    def assign_discharge_nr(self):
-        """
-        Assigns the discharge number to each data point in `self.files_info` based on its `utc_time`.
 
-        The discharge number is taken from `self.triggers_df`. For each row in `self.files_info`, this function
-        iterates through each row in `self.triggers_df` to find a corresponding discharge number, by checking if the
-        `utc_time` of the current row in `self.files_info` falls between the `T0` of the current and previous row
-        in `self.triggers_df`.
+def get_BGR(file_name):
+    with open(file_name, "rb") as binary_file:
+        _, cols_number = get_det_size(binary_file)
+        spec_in_time = pd.DataFrame()
+        spectrum = get_spectrum(binary_file, cols_number, row=1)
+        spec_header = f"{file_name.stem}"
+        spec_in_time[spec_header] = spectrum
+        col_name = spec_header
 
-        If a match is found, the discharge number of the corresponding row in `self.triggers_df` is appended to a list.
-        The list is then transformed into a numpy array and used to update the `discharge_nr` column in `self.files_info`.
+    return col_name, spectrum
 
-        If there is no discharge registered during the day, a message is printed with the date.
-        """
 
-        ### dodac warunki
-        #### SLOW - correct
-        dic = {}
-        for idx_df_total, row_total in self.files_info.iterrows():
-            for (
-                idx_df_triggers,
-                row_triggers,
-            ) in self.triggers_df.iterrows():
-                try:
-                    if idx_df_triggers == 0:
-                        continue
-                    if "BGR" in row_total["file_name"]:
-                        if (
-                            self.triggers_df["T6"].loc[idx_df_triggers - 1]
-                            < row_total["utc_time"]
-                            < self.triggers_df["T6"].loc[idx_df_triggers]
-                        ):
-                            dic[idx_df_total] = row_triggers["discharge_nr"]
-                            continue
+@timer
+def get_all_spectra(file_name, lineRange, time_interval, dt):
+    # wyznacza intensywnosci wybranych przerzialod czasowych (time interval)
+    start_time = time.time()
 
-                    elif (row_total.file_size > 10) and (
-                        self.triggers_df["T1"].loc[idx_df_triggers - 1]
-                        < row_total["utc_time"]
-                        < self.triggers_df["T1"].loc[idx_df_triggers]
-                    ):
-                        dic[idx_df_total] = row_triggers["discharge_nr"] - 1
-                        continue
-                    elif (row_total.file_size > 10) and (
-                        self.triggers_df["T6"].loc[idx_df_triggers - 1]
-                        < row_total["utc_time"]
-                        < self.triggers_df["T6"].loc[idx_df_triggers]
-                    ):
-                        dic[idx_df_total] = row_triggers["discharge_nr"]
+    with open(file_name, "rb") as binary_file:
+        rows_number, cols_number = get_det_size(binary_file)
+        idx_start = int(min(time_interval) / dt)
+        idx_end = int(max(time_interval) / dt)
 
-                    elif (
-                        self.triggers_df["T6"].loc[idx_df_triggers - 1]
-                        < row_total["utc_time"]
-                        < self.triggers_df["T1"].loc[idx_df_triggers]
-                    ):
-                        dic[idx_df_total] = row_triggers["discharge_nr"]
-                except KeyError:
-                    dic[idx_df_total] = row_triggers["discharge_nr"]
-
-        try:
-            self.files_info["discharge_nr"].loc[
-                np.array([i for i in dic.keys()])
-            ] = np.array([i for i in dic.values()])
-        except ValueError:
-            print(f"\n{self.date} - no discharges registered during the day!\n")
-        self.files_info.astype({"discharge_nr": "int32"}, errors="ignore")
-        # breakpoint()
-
-    def get_frequency(self):
-        setup_notes = (
-            pathlib.Path(__file__).parent.parent.resolve()
-            / "__Experimental_data"
-            / f"{self.element}-camera_setups.csv"
-        )
-        with open(setup_notes, "r") as data:
-            df = pd.read_csv(
-                data, sep=",", usecols=["date", "discharge_nr", "ITTE_frequency"]
+        if idx_end < rows_number:
+            spectra = list(
+                map(
+                    lambda row: get_spectrum(binary_file, cols_number, row),
+                    range(idx_start, idx_end),
+                )
             )
-            df = df.astype({"date": int})
+            spec_in_time = pd.DataFrame(spectra).T
+            return spec_in_time
 
-        # Indeksowanie DataFrame po kolumnach "date" oraz "discharge_nr" w celu
-        # szybkiego wyszukiwania po indexach / kombinacjach wartosci w 2 kolumnach
-        df = df.set_index(["date", "discharge_nr"])
-        self.files_info = self.files_info.set_index(["date", "discharge_nr"])
-
-        for index in self.files_info.index:
-            date_value = index[0]  # Pobranie wartości z indeksu dla poziomu "date"
-            discharge_nr = index[
-                1
-            ]  # Pobranie wartości z indeksu dla poziomu "discharge_nr"
-            filtered_df = df.loc[
-                (df.index.get_level_values("date") == int(f"20{date_value}"))
-                & (df.index.get_level_values("discharge_nr") == discharge_nr),
-                "ITTE_frequency",
-            ]
-
-            if not filtered_df.empty:
-                wartosc = filtered_df.iloc[0]
-                self.files_info.at[index, "frequency"] = int(wartosc)
-            else:
-                self.files_info.at[index, "frequency"] = int(200)
-            # breakpoint()
-        self.files_info = self.files_info.astype({"frequency": "int32"})
-
-    def save_file(self):
-        destination = pathlib.Path.cwd() / "discharge_numbers"
-        destination.mkdir(parents=True, exist_ok=True)
-        self.files_info.to_csv(
-            destination / f"{self.element}-{self.date}.csv", sep="\t"
+        spectra = list(
+            map(
+                lambda row: get_spectrum(binary_file, cols_number, row),
+                range(idx_start, rows_number),
+            )
         )
-        print("Experimental numbers saved!")
+        spec_in_time = pd.DataFrame(spectra).T
+
+    print("{:.2f}".format(time.time() - start_time))
+    return spec_in_time
 
 
-def get_exp_data_subdirs(element):
-    """
-    Retrieves all subdirectories in a given directory.
-    """
-    path = (
+def get_utc_from_csv(file_name, element, date):
+    data_file = (
+        pathlib.Path(__file__).parent.parent.resolve()
+        / "data_processing"
+        / "discharge_numbers"
+        / f"{element}"
+        / f"{element}-{date}.csv"
+    )
+    with open(data_file, "r") as data:
+        df = pd.read_csv(
+            data,
+            sep="\t",
+            usecols=[
+                "date",
+                "discharge_nr",
+                "file_name",
+                "time",
+                "type_of_data",
+                "file_size",
+                "utc_time",
+                "frequency",
+            ],
+        )
+        df = df.astype({"date": int})
+        exp_info = df.loc[df["file_name"] == file_name.stem]
+    return exp_info
+
+
+def convert_frequency_to_dt(frequency):
+    return 1 / frequency
+
+
+def calc_utc_timestamps(utc_time, selected_time_stamps, dt):
+    frames_nr = len(selected_time_stamps)
+    ns_time_stamps = [int(i * dt * 1e9) for i in range(frames_nr)]
+    ns_time_stamps.reverse()
+    removed = [utc_time - i for i in ns_time_stamps]
+
+    return removed
+
+
+##### dodatkowo wyliczyc timestampy w odniesieniu do triggerow i wrzucic na wykresy!!!!!
+
+
+def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotter):
+    integral_line_range = {"C": [120, 990], "O": [190, 941]}
+    range_ = integral_line_range[f"{element}"]
+    cwd = pathlib.Path.cwd()
+    file_path = cwd / "discharge_numbers" / f"{element}" / f"{element}-{date}.csv"
+
+    df = pd.read_csv(file_path, sep="\t")
+    df["discharge_nr"] = df["discharge_nr"].replace("-", "0").astype(int)
+    selected_file_names = df.loc[df["discharge_nr"] == discharge_nr][
+        "file_name"
+    ].to_list()
+
+    if not selected_file_names:
+        print("No discharge!")
+        return None
+
+    directory = (
         pathlib.Path(__file__).parent.parent.resolve()
         / "__Experimental_data"
         / "data"
         / element
+        / date
     )
-    # path = pathlib.Path(__file__).parent.parent.resolve() / "__Experimental_data" / "data"/  "test" / element
-    sub_dirs = [f for f in path.iterdir() if f.is_dir() and f.name[0] != (".")]
+    file_list = list(directory.glob("**/*"))
 
-    return sub_dirs
+    discharge_files = [
+        x
+        for x in file_list
+        if x.stat().st_size > 8000
+        and x.stem in selected_file_names
+        and "BGR" not in x.stem
+    ]
+    bgr_files = [x for x in file_list if "BGR" in x.stem in selected_file_names]
+    # breakpoint()
+    for file_name in discharge_files:
+        exp_info = get_utc_from_csv(file_name, element, date)
+        utc_time = int(exp_info["utc_time"])
+        discharge_nr = int(exp_info["discharge_nr"])
+        frequency = int(exp_info["frequency"])
+        dt = convert_frequency_to_dt(frequency)
+
+        spectra = get_all_spectra(file_name, range_, time_interval, dt)
+        ### takes last recorded noise signal before the discharge
+        bgr_file_name, bgr_spec = get_BGR(bgr_files[-1])
+
+        ### TODO co jesli nie ma plikow BGR???
+        spectra_without_bgr = spectra.iloc[:, :].sub(bgr_spec, axis=0)
+        selected_time_stamps = generate_time_stamps(time_interval, dt)[
+            : spectra_without_bgr.shape[1]
+        ]
+
+        time_stamps = calc_utc_timestamps(utc_time, selected_time_stamps, dt)
+
+        # intensity = list(map(lambda row: get_spectrum(binary_file, cols_number, row), range(idx_start, idx_end + 1)))
+        # intensity = list(map(lambda range_: integrate_spectrum(spectra_without_bgr, range_), range_))############################ zmapowac ponizsza petle
+        ##################### TODO DO ZMAPOWANIA
+        intensity = []
+        for i in spectra_without_bgr:
+            integral = integrate_spectrum(np.array(spectra_without_bgr[i]), range_)
+            intensity.append(integral)
+
+        df2 = pd.DataFrame()
+        df2["time"] = selected_time_stamps
+        df2[f"{element}-intensity"] = intensity
+        df2[f"{element}-intensity"] = df2[f"{element}-intensity"].round(1)
+        df2["utc_timestamps"] = time_stamps
+        # df2["BGR"] = bgr_spec
+        df2 = df2.iloc[
+            1:
+        ]  ### usuwa p[ierwsza ramke w czasie 0s -> w celu usuniecia niefizycznych wartosci
+
+        def save_file():
+            destination = (
+                pathlib.Path.cwd() / "time_evolutions" / f"{element}" / f"{date}"
+            )
+            destination.mkdir(parents=True, exist_ok=True)
+            df2.to_csv(
+                destination
+                / f"{element}-{date}-exp_{discharge_nr}-{file_name.stem}.csv",
+                sep="\t",
+                index=False,
+                header=True,
+            )
+            print("File successfully saved!")
+
+        save_file()
+
+        def plot():
+            ax = df2.plot(
+                x="time",
+                y=f"{element}-intensity",
+                label=f"{element}",
+                linewidth=0.7,
+                color="blue",
+                title=f"Evolution of the C/O monitor signal intensity. \n {date}.{discharge_nr}",
+            )
+            ax.set_xlabel("Time [s]")
+            ax.set_ylabel("Intensity [a.u.]")
+            ax.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+            ax.legend()
+            plt.show()
+
+        if plotter:
+            plot()
+
+
+start = time.time()
+
+elements = ["C"]  # , "O"]
+# date = "20230215"
+date = "20221213"
+# discharges = [i for i in range(100)]
+discharges = [16]
+time_interval = [0, 5]
+
+
+def get_from_csv(element, date):
+    filepath = pathlib.Path.cwd() / "discharge_numbers" / f"{element}-{date}.csv"
+    df = pd.read_csv(filepath)
 
 
 if __name__ == "__main__":
-    elements = ["C"]  # , "C"]
     for element in elements:
-        list_of_directories = get_exp_data_subdirs(element)
-        for directory in list_of_directories:
-            exp_ass = ExpAssignment(element, directory, savefile=True)
+        for shot in discharges:
+            get_discharge_nr_from_csv(element, date, shot, time_interval, plotter=True)
+
+fe = time.time() - start
+format_float = "{:.2f}".format(fe)
+print(f"Finished within {format_float}s")
