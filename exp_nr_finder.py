@@ -256,7 +256,7 @@ class ExpAssignment:
         self.files_info = self.files_info.astype({"frequency": "int32"})
 
     def save_file(self):
-        destination = pathlib.Path.cwd() / "discharge_numbers"
+        destination = pathlib.Path.cwd() / "discharge_numbers" / f"{self.element}"
         destination.mkdir(parents=True, exist_ok=True)
         self.files_info.to_csv(
             destination / f"{self.element}-{self.date}.csv", sep="\t"
