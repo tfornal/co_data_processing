@@ -14,7 +14,8 @@ def timer(function):
     def wrapper(*args, **kwargs):
         start = time.time()
         result = function(*args, **kwargs)
-        print(f"Execution time is: {time.time() - start }s")
+        exec_time = time.time() - start
+        print(f"Execution time is: {exec_time:.2f}s")
         return result
 
     return wrapper
@@ -259,28 +260,3 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotte
 
         if plotter:
             plot()
-
-
-start = time.time()
-
-elements = ["C"]  # , "O"]
-# date = "20230215"
-date = "20221213"
-# discharges = [i for i in range(100)]
-discharges = [16]
-time_interval = [0, 5]
-
-
-def get_from_csv(element, date):
-    filepath = pathlib.Path.cwd() / "discharge_numbers" / f"{element}-{date}.csv"
-    df = pd.read_csv(filepath)
-
-
-if __name__ == "__main__":
-    for element in elements:
-        for shot in discharges:
-            get_discharge_nr_from_csv(element, date, shot, time_interval, plotter=True)
-
-fe = time.time() - start
-format_float = "{:.2f}".format(fe)
-print(f"Finished within {format_float}s")
