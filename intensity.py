@@ -137,6 +137,7 @@ def get_utc_from_csv(file_name, element, date):
         )
         df = df.astype({"date": int})
         exp_info = df.loc[df["file_name"] == file_name.stem]
+
     return exp_info
 
 
