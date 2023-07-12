@@ -169,8 +169,7 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotte
         selected_file_names = df.loc[df["discharge_nr"] == discharge_nr][
             "file_name"
         ].to_list()
-    breakpoint()
-    print(selected_file_names)
+
     if not selected_file_names:
         print("No discharge!")
         return None
@@ -183,7 +182,6 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotte
         / date
     )
     file_list = list(directory.glob("**/*"))
-    print(file_list)
     discharge_files = [
         x
         for x in file_list
@@ -192,12 +190,11 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotte
         and "BGR" not in x.stem
     ]
     bgr_files = [x for x in file_list if "BGR" in x.stem in selected_file_names]
-    # breakpoint()
     for file_name in discharge_files:
         exp_info = get_utc_from_csv(file_name, element, date)
-        utc_time = int(exp_info["utc_time"])
-        discharge_nr = int(exp_info["discharge_nr"])
-        frequency = int(exp_info["frequency"])
+        utc_time = int(exp_info["utc_time"].iloc[0])
+        discharge_nr = int(exp_info["discharge_nr"].iloc[0])
+        frequency = int(exp_info["frequency"].iloc[0])
         dt = convert_frequency_to_dt(frequency)
 
         spectra = get_all_spectra(file_name, range_, time_interval, dt)
@@ -263,3 +260,28 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotte
 
         if plotter:
             plot()
+
+
+import time
+from intensity import get_discharge_nr_from_csv
+import pandas as pd
+import pathlib
+
+start = time.time()
+
+elements = ["C", "O"]  # , "O"]  # , "O"]
+date = "20230215"
+
+
+discharges = [15]  # , 18, 21]
+# discharges = [0]
+time_interval = [0, 415]
+
+
+if __name__ == "__main__":
+    for shot in discharges:
+        for element in elements:
+            get_discharge_nr_from_csv(element, date, shot, time_interval, plotter=True)
+
+
+#### na osiach rowniey dodac cyasz lokalne z eksperymentow - czas rozpoczecia i zakonczenia, a takze ewentualnie dla sprawdzenia utc
