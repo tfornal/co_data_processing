@@ -222,7 +222,8 @@ class ExpAssignment:
     def get_frequency(self):
         setup_notes = (
             pathlib.Path(__file__).parent.parent.resolve()
-            / "__Experimental_data"
+            / "data"
+            / "exp_data_parameters"
             / f"{self.element}-camera_setups.csv"
         )
         with open(setup_notes, "r") as data:
@@ -269,8 +270,8 @@ def get_exp_data_subdirs(element):
     """
     path = (
         pathlib.Path(__file__).parent.parent.resolve()
+        / "exp_data"
         / "__Experimental_data"
-        / "data"
         / element
     )
     # path = pathlib.Path(__file__).parent.parent.resolve() / "__Experimental_data" / "data"/  "test" / element

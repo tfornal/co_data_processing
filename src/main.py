@@ -12,12 +12,7 @@ date = "20230215"
 # discharges = [i for i in range(100)]
 discharges = [15]  # , 18, 21]
 # discharges = [0]
-time_interval = [0, 415]
-
-
-# def get_from_csv(element, date):
-#     filepath = pathlib.Path.cwd() / "discharge_numbers" / f"{element}" / f"{element}-{date}.csv"
-#     df = pd.read_csv(filepath)
+time_interval = [0, 4]
 
 
 if __name__ == "__main__":

@@ -8,6 +8,8 @@ __pycache__/
 *.csv
 *.xlsx
 *.dat
+*.jpg
+
 # Distribution / packaging
 .Python
 .mypy_cache/
