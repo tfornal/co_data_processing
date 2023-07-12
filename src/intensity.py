@@ -164,12 +164,13 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotte
     file_path = cwd / "discharge_numbers" / f"{element}" / f"{element}-{date}.csv"
 
     df = pd.read_csv(file_path, sep="\t")
-    if not discharge == 0:
+    if not discharge_nr == 0:
         df["discharge_nr"] = df["discharge_nr"].replace("-", "0").astype(int)
         selected_file_names = df.loc[df["discharge_nr"] == discharge_nr][
             "file_name"
         ].to_list()
-
+    breakpoint()
+    print(selected_file_names)
     if not selected_file_names:
         print("No discharge!")
         return None
@@ -182,7 +183,7 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotte
         / date
     )
     file_list = list(directory.glob("**/*"))
-
+    print(file_list)
     discharge_files = [
         x
         for x in file_list
