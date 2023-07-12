@@ -6,11 +6,11 @@ import pathlib
 start = time.time()
 
 elements = ["C"]  # , "O"]  # , "O"]
-date = "20230117"
+date = "20230215"
 
 
 # discharges = [i for i in range(100)]
-discharges = [27]
+discharges = [15]  # , 18, 21]
 # discharges = [0]
 time_interval = [0, 415]
 
