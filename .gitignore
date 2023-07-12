@@ -6,7 +6,8 @@ __pycache__/
 # C extensions
 *.so
 *.csv
-
+*.xlsx
+*.dat
 # Distribution / packaging
 .Python
 .mypy_cache/
