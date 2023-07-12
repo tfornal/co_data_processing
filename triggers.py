@@ -30,12 +30,13 @@ class Triggers:
             self.triggers_df = self._create_df()
             if savefile:
                 self.save_file()
-                
-                
+
     def read_from_file(self):
         cwd = pathlib.Path.cwd()
         try:
-            triggers_df = pd.read_csv(cwd/"program_triggers"/ f"{self.date}_triggers.csv", sep = "\t")
+            triggers_df = pd.read_csv(
+                cwd / "program_triggers" / f"{self.date}_triggers.csv", sep="\t"
+            )
             return triggers_df
         except FileNotFoundError:
             print(f"{self.date} local Trigger file does not exist. Downloading...")
@@ -48,7 +49,7 @@ class Triggers:
             int(date[6:]),
         )
         return year, month, day
-        
+
     def _convert_to_UTC(self):
         """
         Converts the `date` passed as parameter to UTC timestamps for the start and end of the day.
@@ -58,7 +59,7 @@ class Triggers:
         tuple
             A tuple of two integers representing the UTC timestamps for the start and end of the day of the `date` passed as parameter.
         """
-        
+
         beginning_of_the_day = datetime(self.year, self.month, self.day, 0, 0, 0, 0)
         finish_of_the_day = datetime(self.year, self.month, self.day, 23, 59, 59, 0)
 
@@ -76,8 +77,7 @@ class Triggers:
         return beginning_of_the_day, end_of_the_day
 
     def _get_url(self):
-        """Returns the URL for accessing triggers data for the `date` passed as parameter.
-        """
+        """Returns the URL for accessing triggers data for the `date` passed as parameter."""
         url = (
             self.ARCHIVE_PROGINFO
             + str(self.beginning_of_the_day)
@@ -90,7 +90,7 @@ class Triggers:
         """
         Returns the discharge numbers and start of each discharge in UTC timestamps for the day of the `date` passed as parameter.
         """
-        triggers = {"T0" : [], "T1" : [], "T6" : []}
+        triggers = {"T0": [], "T1": [], "T6": []}
         api_response = requests.get(self.url)
         nr_of_shots = len(api_response.json()["programs"])
         print(f"Number of discharges on 20{self.date}:", nr_of_shots)
@@ -110,24 +110,31 @@ class Triggers:
                     start_ecrh = 0
                     triggers["T1"].append(start_ecrh)
                 else:
-                    start_ecrh = start_program + 60_000_000_000 ### add 60s to ECRH start
+                    start_ecrh = (
+                        start_program + 60_000_000_000
+                    )  ### add 60s to ECRH start
                     triggers["T1"].append(start_ecrh)
             try:
-                end_of_program = api_response.json()["programs"][shot]["trigger"]["6"][0]
+                end_of_program = api_response.json()["programs"][shot]["trigger"]["6"][
+                    0
+                ]
                 triggers["T6"].append(end_of_program)
             except (IndexError, TypeError):
                 end_of_program = 0
                 triggers["T6"].append(end_of_program)
-        
-        return triggers
 
+        return triggers
 
     def _create_df(self):
         """Creates a pandas DataFrame from the processed triggers data."""
         triggers_df = pd.DataFrame()
-        triggers_df["discharge_nr"] = [i for i in range(1, len(self.triggers["T0"])+1)]
-        triggers_df["date"] = str(f"{self.year:02d}") + str(f"{self.month:02d}") + str(f"{self.day:02d}")
-        
+        triggers_df["discharge_nr"] = [
+            i for i in range(1, len(self.triggers["T0"]) + 1)
+        ]
+        triggers_df["date"] = (
+            str(f"{self.year:02d}") + str(f"{self.month:02d}") + str(f"{self.day:02d}")
+        )
+
         for key, value in self.triggers.items():
             triggers_df[f"{key}"] = value
         return triggers_df
@@ -135,13 +142,12 @@ class Triggers:
     def save_file(self):
         destination = pathlib.Path.cwd() / "program_triggers"
         destination.mkdir(parents=True, exist_ok=True)
-        self.triggers_df.to_csv(destination / f"{self.date}_triggers.csv", sep = "\t", index = False)
+        self.triggers_df.to_csv(
+            destination / f"{self.date}_triggers.csv", sep="\t", index=False
+        )
         print("Triggers successfully saved!")
-        
-        
 
-        
+
 if __name__ == "__main__":
     date = "20230215"
-    Triggers(date, savefile = True)
-    
+    Triggers(date, savefile=True)

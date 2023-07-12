@@ -41,12 +41,10 @@ class ExpAssignment:
 
         self.files_info = self.make_df()
         self.utc_time = self.get_UTC_time()
-        
+
         self.assign_discharge_nr()
         self.camera_frequency = self.get_frequency()
-        
-        
-        
+
         if savefile:
             self.save_file()
 
@@ -58,7 +56,7 @@ class ExpAssignment:
 
     def _get_file_sizes(self):
         return self.fobject.file_sizes
-    
+
     def _get_date_from_files(self):
         return self.fobject.date
 
@@ -88,20 +86,19 @@ class ExpAssignment:
         """
         splitted_fnames = self.retrieve_file_info()
         df = pd.DataFrame(splitted_fnames)
-        if len(df.columns)==4:
-            df.drop(df.columns[-2], axis=1, inplace = True)
-        elif len(df.columns)==3:
-            df.drop(df.columns[-1], axis=1, inplace = True)
+        if len(df.columns) == 4:
+            df.drop(df.columns[-2], axis=1, inplace=True)
+        elif len(df.columns) == 3:
+            df.drop(df.columns[-1], axis=1, inplace=True)
             df["type_of_data"] = "spectrum"
-            
+
         df = df.fillna("spectrum")
         df["file_size"] = self.file_sizes
         df.columns = ["date", "time", "type_of_data", "file_size"]
         df = df.astype({"file_size": int})
         df.insert(loc=0, column="file_name", value=self.file_list)
-        
+
         return df
-    
 
     def get_UTC_time(self):
         """
@@ -137,7 +134,7 @@ class ExpAssignment:
         """
 
         date = "20" + date
-        
+
         # convert European/Berlin timezonee to UTC
         from_zone = tz.gettz("Europe/Berlin")
         to_zone = tz.gettz("UTC")
@@ -154,8 +151,6 @@ class ExpAssignment:
         )
 
         return utc_time_in_ns
-
-
 
     def assign_discharge_nr(self):
         """
@@ -221,10 +216,9 @@ class ExpAssignment:
             ] = np.array([i for i in dic.values()])
         except ValueError:
             print(f"\n{self.date} - no discharges registered during the day!\n")
-        self.files_info.astype({"discharge_nr" : "int32"}, errors = "ignore")
+        self.files_info.astype({"discharge_nr": "int32"}, errors="ignore")
         # breakpoint()
-        
-        
+
     def get_frequency(self):
         setup_notes = (
             pathlib.Path(__file__).parent.parent.resolve()
@@ -237,27 +231,35 @@ class ExpAssignment:
             )
             df = df.astype({"date": int})
 
-        # Indeksowanie DataFrame po kolumnach "date" oraz "discharge_nr" w celu 
+        # Indeksowanie DataFrame po kolumnach "date" oraz "discharge_nr" w celu
         # szybkiego wyszukiwania po indexach / kombinacjach wartosci w 2 kolumnach
         df = df.set_index(["date", "discharge_nr"])
         self.files_info = self.files_info.set_index(["date", "discharge_nr"])
-        
+
         for index in self.files_info.index:
             date_value = index[0]  # Pobranie wartości z indeksu dla poziomu "date"
-            discharge_nr = index[1]  # Pobranie wartości z indeksu dla poziomu "discharge_nr"
-            filtered_df = df.loc[(df.index.get_level_values("date") == int(f"20{date_value}")) & (df.index.get_level_values("discharge_nr") == discharge_nr), "ITTE_frequency"]
-        
+            discharge_nr = index[
+                1
+            ]  # Pobranie wartości z indeksu dla poziomu "discharge_nr"
+            filtered_df = df.loc[
+                (df.index.get_level_values("date") == int(f"20{date_value}"))
+                & (df.index.get_level_values("discharge_nr") == discharge_nr),
+                "ITTE_frequency",
+            ]
+
             if not filtered_df.empty:
                 wartosc = filtered_df.iloc[0]
                 self.files_info.at[index, "frequency"] = int(wartosc)
             else:
                 self.files_info.at[index, "frequency"] = int(200)
-        self.files_info = self.files_info.astype({"frequency":"int32"})
+        self.files_info = self.files_info.astype({"frequency": "int32"})
 
     def save_file(self):
-        destination = pathlib.Path.cwd() / "discharge_numbers" / f"{self.element}" 
+        destination = pathlib.Path.cwd() / "discharge_numbers" / f"{self.element}"
         destination.mkdir(parents=True, exist_ok=True)
-        self.files_info.to_csv(destination / f"{self.element}-{self.date}.csv", sep="\t")
+        self.files_info.to_csv(
+            destination / f"{self.element}-{self.date}.csv", sep="\t"
+        )
         print("Experimental details saved!")
 
 
@@ -281,7 +283,7 @@ if __name__ == "__main__":
     elements = ["C", "O"]
     for element in elements:
         list_of_directories = get_exp_data_subdirs(element)
-        
+
         for directory in list_of_directories:
             try:
                 exp_ass = ExpAssignment(element, directory, savefile=True)

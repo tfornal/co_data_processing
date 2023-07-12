@@ -165,7 +165,6 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotte
 
     df = pd.read_csv(file_path, sep="\t")
     if not discharge == 0:
-            
         df["discharge_nr"] = df["discharge_nr"].replace("-", "0").astype(int)
         selected_file_names = df.loc[df["discharge_nr"] == discharge_nr][
             "file_name"
