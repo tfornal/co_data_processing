@@ -269,12 +269,8 @@ def get_exp_data_subdirs(element):
     Retrieves all subdirectories in a given directory.
     """
     path = (
-        pathlib.Path(__file__).parent.parent.resolve()
-        / "exp_data"
-        / "__Experimental_data"
-        / element
+        pathlib.Path(__file__).parent.parent.resolve() / "data" / "exp_data" / element
     )
-    # path = pathlib.Path(__file__).parent.parent.resolve() / "__Experimental_data" / "data"/  "test" / element
     sub_dirs = [f for f in path.iterdir() if f.is_dir() and f.name[0] != (".")]
 
     return sub_dirs

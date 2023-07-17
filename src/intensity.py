@@ -115,11 +115,12 @@ def get_all_spectra(file_name, lineRange, time_interval, dt):
 def get_utc_from_csv(file_name, element, date):
     data_file = (
         pathlib.Path(__file__).parent.parent.resolve()
-        / "data_processing"
+        / "data"
         / "discharge_numbers"
         / f"{element}"
         / f"{element}-{date}.csv"
     )
+    breakpoint()
     with open(data_file, "r") as data:
         df = pd.read_csv(
             data,
@@ -160,9 +161,17 @@ def calc_utc_timestamps(utc_time, selected_time_stamps, dt):
 def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotter):
     integral_line_range = {"C": [120, 990], "O": [190, 941]}
     range_ = integral_line_range[f"{element}"]
-    cwd = pathlib.Path.cwd()
-    file_path = cwd / "discharge_numbers" / f"{element}" / f"{element}-{date}.csv"
+    # cwd = pathlib.Path.parent.cwd()
+    # cwd = pathlib.Path(__file__).parent.resolve() / "data" / "exp_data" / element
+    # p
 
+    file_path = (
+        pathlib.Path(__file__).parent.parent.resolve()
+        / "data"
+        / "discharge_numbers"
+        / f"{element}"
+        / f"{element}-{date}.csv"
+    )
     df = pd.read_csv(file_path, sep="\t")
     if not discharge_nr == 0:
         df["discharge_nr"] = df["discharge_nr"].replace("-", "0").astype(int)
@@ -176,8 +185,8 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotte
 
     directory = (
         pathlib.Path(__file__).parent.parent.resolve()
-        / "__Experimental_data"
         / "data"
+        / "exp_data"
         / element
         / date
     )

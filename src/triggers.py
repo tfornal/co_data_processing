@@ -32,12 +32,17 @@ class Triggers:
                 self.save_file()
 
     def read_from_file(self):
-        cwd = pathlib.Path.cwd()
         try:
             triggers_df = pd.read_csv(
-                cwd / "program_triggers" / f"{self.date}_triggers.csv", sep="\t"
+                pathlib.Path(__file__).parent.parent.resolve()
+                / "data"
+                / "program_triggers"
+                / f"{self.date}_triggers.csv",
+                sep="\t",
             )
+            print(triggers_df)
             return triggers_df
+
         except FileNotFoundError:
             print(f"{self.date} local Trigger file does not exist. Downloading...")
             return None
@@ -140,7 +145,11 @@ class Triggers:
         return triggers_df
 
     def save_file(self):
-        destination = pathlib.Path.cwd() / "program_triggers"
+        destination = (
+            pathlib.Path(__file__).parent.parent.resolve()
+            / "data_processing"
+            / "program_triggers"
+        )
         destination.mkdir(parents=True, exist_ok=True)
         self.triggers_df.to_csv(
             destination / f"{self.date}_triggers.csv", sep="\t", index=False
