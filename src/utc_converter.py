@@ -24,7 +24,6 @@ def get_time_from_UTC(time_in_ns):
     # Wypisanie daty i godziny
     return utc_time_with_microseconds.time()
 
-
-time_in_ns = 1676457072510000000
-x = get_time_from_UTC(time_in_ns)
-print(x)
+if __name__ == "__main__":
+    time = get_time_from_UTC(1676457072510000000)
+    print(time)
