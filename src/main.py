@@ -10,8 +10,8 @@ date = "20230215"
 
 
 # discharges = [i for i in range(100)]
-discharges = [15, 18, 21]
-time_interval = [0, 14]
+discharges = [21]  # , 18, 21]
+time_interval = [0, 0.5]
 
 
 if __name__ == "__main__":
