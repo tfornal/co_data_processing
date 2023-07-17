@@ -120,7 +120,6 @@ def get_utc_from_csv(file_name, element, date):
         / f"{element}"
         / f"{element}-{date}.csv"
     )
-    breakpoint()
     with open(data_file, "r") as data:
         df = pd.read_csv(
             data,

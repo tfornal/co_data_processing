@@ -40,7 +40,6 @@ class Triggers:
                 / f"{self.date}_triggers.csv",
                 sep="\t",
             )
-            print(triggers_df)
             return triggers_df
 
         except FileNotFoundError:
