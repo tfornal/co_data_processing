@@ -222,14 +222,27 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotte
             intensity.append(integral)
 
         df2 = pd.DataFrame()
-        df2["time"] = selected_time_stamps
+        df2["discharge_time"] = selected_time_stamps
         df2[f"{element}-intensity"] = intensity
         df2[f"{element}-intensity"] = df2[f"{element}-intensity"].round(1)
         df2["utc_timestamps"] = time_stamps
         # df2["BGR"] = bgr_spec
         df2 = df2.iloc[1:]
         ### usuwa p[ierwsza ramke w czasie 0s -> w celu usuniecia niefizycznych wartosci
+        
+        from utc_converter import get_time_from_UTC
+
+        time = list(map(get_time_from_UTC, df2["utc_timestamps"]))
+        x_labels = [date.strftime("%H:%M:%S.%f")[:-3] if date.microsecond % 1_000 == 0 else ""
+                for date in time]
+        df2["time"] = x_labels
+        # Wyodrębnienie ostatniej kolumny
+        last_column = df2.pop(df2.columns[-1])
+
+        # # Wstawienie ostatniej kolumny na początek
+        df2.insert(0, last_column.name, last_column)
         print(df2)
+
 
         def save_file():
             destination = (
@@ -271,10 +284,11 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotte
             ax.plot(x, y, color="blue")
 
             x = list(range(len(time)))
-            x_labels = [date.strftime("%H:%M:%S") if date.microsecond % 1_000_000 == 0 else ""
+            x_labels = [date.strftime("%H:%M:%S") if date.microsecond % 5_000_000 == 0 else ""
                 for date in time]
             ax.set_xticks(np.arange(len(x)), labels=x_labels)
             plt.setp(ax.get_xticklabels(), rotation=90)
+            plt.tight_layout()
             # ax.set_xlabel("Wartości x1")
             # ax.set_ylabel("Wartości y", color="blue")
             # ax2 = ax.twiny()
