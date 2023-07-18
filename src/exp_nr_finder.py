@@ -97,7 +97,6 @@ class ExpAssignment:
         df.columns = ["date", "time", "type_of_data", "file_size"]
         df = df.astype({"file_size": int})
         df.insert(loc=0, column="file_name", value=self.file_list)
-
         return df
 
     def _convert_human_to_UTC_ns(self, date: str, time: str) -> int:
