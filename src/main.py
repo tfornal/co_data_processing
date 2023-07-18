@@ -5,13 +5,13 @@ import pathlib
 
 start = time.time()
 
-elements = ["C"]  # , "O"]  # , "O"]
-date = "20230215"
+elements = ["C"]  # , "O"]  # , "O"]  # , "O"]
+date = "20230117"
 
 
 # discharges = [i for i in range(100)]
-discharges = [21]  # , 18, 21]
-time_interval = [0, 1]
+discharges = [27]  # , 18, 21]
+time_interval = [0, 100]
 
 
 if __name__ == "__main__":

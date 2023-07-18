@@ -100,22 +100,6 @@ class ExpAssignment:
 
         return df
 
-    def get_UTC_time(self):
-        """
-        Calculates the UTC timestamp for each row of `files_info` and adds it as a new column named 'utc_time'.
-
-        Returns:
-        -------
-        List : int
-            The list of UTC timestamps for each row of `files_info`.
-        """
-        self.files_info["utc_time"] = self.files_info.apply(
-            lambda row: self._convert_human_to_UTC_ns(row["date"], row["time"]), axis=1
-        )
-        self.files_info["discharge_nr"] = "-"
-
-        return self.files_info["utc_time"].tolist()
-
     def _convert_human_to_UTC_ns(self, date: str, time: str) -> int:
         """
         Converts a given date and time to UTC timestamp in nanoseconds.
@@ -151,6 +135,22 @@ class ExpAssignment:
         )
 
         return utc_time_in_ns
+
+    def get_UTC_time(self):
+        """
+        Calculates the UTC timestamp for each row of `files_info` and adds it as a new column named 'utc_time'.
+
+        Returns:
+        -------
+        List : int
+            The list of UTC timestamps for each row of `files_info`.
+        """
+        self.files_info["utc_time"] = self.files_info.apply(
+            lambda row: self._convert_human_to_UTC_ns(row["date"], row["time"]), axis=1
+        )
+        self.files_info["discharge_nr"] = "-"
+
+        return self.files_info["utc_time"].tolist()
 
     def assign_discharge_nr(self):
         """
