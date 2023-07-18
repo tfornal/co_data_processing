@@ -259,44 +259,31 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotte
             print("File successfully saved!")
 
         def plot():
-            fig, ax = plt.subplots()
-            from utc_converter import get_time_from_UTC
+            fig, ax1 = plt.subplots()
+            ax2 = ax1.twiny()
 
-            time = list(map(get_time_from_UTC, df2["utc_timestamps"]))
-            x = df2["time"]
-            y = df2[f"{element}-intensity"]
-            ax.plot(x, y, color="blue")
-            x = list(range(len(time)))
-
-            ### warunek ze jesli dla wielu minut, albo powyzej x sekund to dzielnik wiekszy
-            ### czyli time interval / dt - sprawdzic ile pkt i dostsowowac warunki
-            x_labels = [
-                date.strftime("%H:%M:%S") if date.microsecond % 10_000_000 == 0 else ""
-                for date in time
-            ]
-            ax.set_xticks(np.arange(len(x)), labels=x_labels)
-            plt.setp(ax.get_xticklabels(), rotation=90)
-            ax.set_title = f"Evolution of the C/O monitor signal intensity. \n {date}.{discharge_nr}"
-            plt.tight_layout()
-
-            plt.show()
-
-        def using_pd():
-            ax = df2.plot(
-                x="discharge_time",
-                y=f"{element}-intensity",
-                label=f"{element}",
-                linewidth=0.7,
-                color="blue",
-                title=f"Evolution of the C/O monitor signal intensity. \n {date}.{discharge_nr}",
+            ax1.plot(
+                pd.to_datetime(df2["time"], format="%H:%M:%S.%f", errors="coerce"),
+                df2[f"{element}-intensity"],
+                alpha=0,
             )
-            ax.set_xlabel("Time [s]")
-            ax.set_ylabel("Intensity [a.u.]")
-            ax.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
-            ax.legend()
+
+            ax2.plot(
+                np.asarray(df2["discharge_time"], float),
+                df2[f"{element}-intensity"],
+                color="blue",
+                label="discharge_time",
+                linewidth=0.4,
+            )
+
+            ax1.tick_params(axis="x", rotation=45)
+            ax1.set_ylabel("Intensity [a.u.]")
+            ax1.set_xlabel("Local time")
+            ax2.set_xlabel("Discharge time [s]")
+
+            fig.set_title = f"Evolution of the C/O monitor signal intensity."  # \n {date}.{discharge_nr}"
             plt.show()
 
-        # using_pd()
         save_file()
         if plotter:
             plot()
