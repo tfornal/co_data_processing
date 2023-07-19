@@ -62,6 +62,7 @@ class ExpAssignment:
 
     def _get_triggers(self):
         t = Triggers(self.date)
+        # breakpoint()
         return t.triggers_df
 
     def retrieve_file_info(self):
@@ -79,27 +80,23 @@ class ExpAssignment:
         return splitted_fnames
 
     def make_df(self):
-        """
-        Returns a DataFrame containing information about all files collected at
-        a given time in the considered directory along with their trigger time
-        T0 and the assigned discharge number.
-        """
         splitted_fnames = self.retrieve_file_info()
         df = pd.DataFrame(splitted_fnames)
-        if len(df.columns) == 4:
-            df.drop(df.columns[-2], axis=1, inplace=True)
-        elif len(df.columns) == 3:
-            df.drop(df.columns[-1], axis=1, inplace=True)
+        # if len(df.columns) == 4:
+        #     df.drop(df.columns[-2], axis=1, inplace=True)
+        if len(df.columns) == 3:
+            # df.drop(df.columns[-1], axis=1, inplace=True)
             df["type_of_data"] = "spectrum"
-
+        # breakpoint()
         df = df.fillna("spectrum")
         df["file_size"] = self.file_sizes
-        df.columns = ["date", "time", "type_of_data", "file_size"]
+        # df.columns = ["date", "time", "type_of_data", "file_size"]
+        df.columns = ["date", "time", "miliseconds", "type_of_data", "file_size"]
         df = df.astype({"file_size": int})
         df.insert(loc=0, column="file_name", value=self.file_list)
         return df
 
-    def _convert_human_to_UTC_ns(self, date: str, time: str) -> int:
+    def _convert_human_to_UTC_ns(self, date: str, time: str, miliseconds: str) -> int:
         """
         Converts a given date and time to UTC timestamp in nanoseconds.
 
@@ -122,17 +119,15 @@ class ExpAssignment:
         from_zone = tz.gettz("Europe/Berlin")
         to_zone = tz.gettz("UTC")
         discharge_time = (
-            datetime.strptime(f"{date} {time}", "%Y%m%d %H%M%S")
+            datetime.strptime(f"{date} {time} {miliseconds}", "%Y%m%d %H%M%S %f")
             .replace(tzinfo=from_zone)
             .astimezone(to_zone)
         )
 
-        # convert UTC time to ns
         utc_time_in_ns = (
             int(round(calendar.timegm(discharge_time.utctimetuple()))) * 1_000_000_000
-            + discharge_time.microsecond * 1_000
+            + int(miliseconds) * 1_000_000
         )
-
         return utc_time_in_ns
 
     def get_UTC_time(self):
@@ -145,10 +140,12 @@ class ExpAssignment:
             The list of UTC timestamps for each row of `files_info`.
         """
         self.files_info["utc_time"] = self.files_info.apply(
-            lambda row: self._convert_human_to_UTC_ns(row["date"], row["time"]), axis=1
+            lambda row: self._convert_human_to_UTC_ns(
+                row["date"], row["time"], row["miliseconds"]
+            ),
+            axis=1,
         )
         self.files_info["discharge_nr"] = "-"
-
         return self.files_info["utc_time"].tolist()
 
     def assign_discharge_nr(self):
@@ -216,7 +213,6 @@ class ExpAssignment:
         except ValueError:
             print(f"\n{self.date} - no discharges registered during the day!\n")
         self.files_info.astype({"discharge_nr": "int32"}, errors="ignore")
-        # breakpoint()
 
     def get_frequency(self):
         setup_notes = (
@@ -235,7 +231,6 @@ class ExpAssignment:
         # szybkiego wyszukiwania po indexach / kombinacjach wartosci w 2 kolumnach
         df = df.set_index(["date", "discharge_nr"])
         self.files_info = self.files_info.set_index(["date", "discharge_nr"])
-
         for index in self.files_info.index:
             date_value = index[0]  # Pobranie wartości z indeksu dla poziomu "date"
             discharge_nr = index[
@@ -255,7 +250,12 @@ class ExpAssignment:
         self.files_info = self.files_info.astype({"frequency": "int32"})
 
     def save_file(self):
-        destination = pathlib.Path.cwd() / "discharge_numbers" / f"{self.element}"
+        destination = (
+            pathlib.Path(__file__).parent.parent.resolve()
+            / "data"
+            / "discharge_numbers"
+            / f"{self.element}"
+        )
         destination.mkdir(parents=True, exist_ok=True)
         self.files_info.to_csv(
             destination / f"{self.element}-{self.date}.csv", sep="\t"
