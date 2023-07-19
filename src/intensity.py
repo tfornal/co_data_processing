@@ -17,7 +17,7 @@ def timer(function):
         start = time.time()
         result = function(*args, **kwargs)
         exec_time = time.time() - start
-        print(f"Execution time is: {exec_time:.2f}s")
+        print(f"Execution time: {exec_time:.2f}s")
         return result
 
     return wrapper
@@ -66,7 +66,6 @@ def generate_time_stamps(time_interval, dt):
     selected_time_stamps = [
         "{:.3f}".format(i) for i in np.arange(start, end + dt / 100, dt)
     ]
-    # print(selected_time_stamps)
     return selected_time_stamps
 
 
@@ -110,7 +109,6 @@ def get_all_spectra(file_name, lineRange, time_interval, dt):
         )
         spec_in_time = pd.DataFrame(spectra).T
 
-    print("{:.2f}".format(time.time() - start_time))
     return spec_in_time
 
 
@@ -174,7 +172,7 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotte
         ].to_list()
 
     if not selected_file_names:
-        print("No discharge!")
+        print(f"{date}.{discharge_nr:03} -> No discharge!")
         return None
 
     directory = (
@@ -202,14 +200,22 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotte
 
         spectra = get_all_spectra(file_name, range_, time_interval, dt)
         ### takes last recorded noise signal before the discharge
-        bgr_file_name, bgr_spec = get_BGR(bgr_files[-1])
+        try:
+            bgr_file_name, bgr_spec = get_BGR(bgr_files[-1])
 
-        ### TODO co jesli nie ma plikow BGR???
-        spectra_without_bgr = spectra.iloc[:, :].sub(bgr_spec, axis=0)
-        selected_time_stamps = generate_time_stamps(time_interval, dt)[
-            : spectra_without_bgr.shape[1]
-        ]
+            ### TODO co jesli nie ma plikow BGR???
+            spectra_without_bgr = spectra.iloc[:, :].sub(bgr_spec, axis=0)
+            selected_time_stamps = generate_time_stamps(time_interval, dt)[
+                : spectra_without_bgr.shape[1]
+            ]
 
+        #### TODO background jesli go nie ma!!!
+        except IndexError:
+            spectra_without_bgr = spectra
+            selected_time_stamps = generate_time_stamps(time_interval, dt)[
+                : spectra_without_bgr.shape[1]
+            ]
+            print("BACKGROUND NOT REMOVED!!!!!!!!!!!!!!!!!!!!!!!! TODO")
         time_stamps = calc_utc_timestamps(utc_time, selected_time_stamps, dt)
 
         # intensity = list(map(lambda row: get_spectrum(binary_file, cols_number, row), range(idx_start, idx_end + 1)))
@@ -222,8 +228,10 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotte
 
         df2 = pd.DataFrame()
         df2["discharge_time"] = selected_time_stamps
-        df2[f"{element}-intensity"] = intensity
-        df2[f"{element}-intensity"] = df2[f"{element}-intensity"].round(1)
+        df2[f"QSO_{element}_{date}.{discharge_nr}"] = intensity
+        df2[f"QSO_{element}_{date}.{discharge_nr}"] = df2[
+            f"QSO_{element}_{date}.{discharge_nr}"
+        ].round(1)
         df2["utc_timestamps"] = time_stamps
         df2 = df2.iloc[1:]
         ### usuwa p[ierwsza ramke w czasie 0s -> w celu usuniecia niefizycznych wartosci
@@ -235,10 +243,10 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotte
         ]
         df2["time"] = x_labels
         # Wyodrębnienie ostatniej kolumny
-        last_column = df2.pop(df2.columns[-1])
+        # last_column = df2.pop(df2.columns[-1])
 
         # # Wstawienie ostatniej kolumny na początek
-        df2.insert(0, last_column.name, last_column)
+        # df2.insert(0, last_column.name, last_column)
 
         def save_file():
             destination = (
@@ -251,26 +259,31 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotte
             destination.mkdir(parents=True, exist_ok=True)
             df2.to_csv(
                 destination
-                / f"{element}-{date}-exp_{discharge_nr}-{file_name.stem}.csv",
+                / f"QSO_{element}_{date}.{discharge_nr:03}-{file_name.stem}.csv",
                 sep="\t",
                 index=False,
                 header=True,
             )
-            print("File successfully saved!")
+            print(
+                f"QSO_{element}_{date}.{discharge_nr:03} - intensity evolution saved!"
+            )
 
         def plot():
             fig, ax1 = plt.subplots()
+            ax1.set_title(
+                f"Evolution of the C/O monitor signal intensity.\n {date}.{discharge_nr:03}"
+            )
             ax2 = ax1.twiny()
 
             ax1.plot(
                 pd.to_datetime(df2["time"], format="%H:%M:%S.%f", errors="coerce"),
-                df2[f"{element}-intensity"],
+                df2[f"QSO_{element}_{date}.{discharge_nr}"],
                 alpha=0,
             )
 
             ax2.plot(
                 np.asarray(df2["discharge_time"], float),
-                df2[f"{element}-intensity"],
+                df2[f"QSO_{element}_{date}.{discharge_nr}"],
                 color="blue",
                 label="discharge_time",
                 linewidth=0.4,
@@ -280,8 +293,20 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotte
             ax1.set_ylabel("Intensity [a.u.]")
             ax1.set_xlabel("Local time")
             ax2.set_xlabel("Discharge time [s]")
-
-            fig.set_title = f"Evolution of the C/O monitor signal intensity."  # \n {date}.{discharge_nr}"
+            destination = (
+                pathlib.Path(__file__).parent.parent.resolve()
+                / "data"
+                / "time_evolutions"
+                / f"{element}"
+                / f"{date}"
+                / "img"
+            )
+            plt.tight_layout()  # Dostosowanie rozmiaru obszaru wykresu
+            destination.mkdir(parents=True, exist_ok=True)
+            plt.savefig(
+                destination
+                / f"QSO_{element}_{date}.{discharge_nr:03}-{file_name.stem}.png"
+            )
             plt.show()
 
         save_file()
