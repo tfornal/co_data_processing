@@ -1,4 +1,3 @@
-from dateutil import tz
 from functools import wraps
 import pathlib
 import time
@@ -8,6 +7,7 @@ import numpy as np
 import pandas as pd
 from scipy import integrate
 
+from file_reader import Files
 from utc_converter import get_time_from_UTC
 
 
@@ -52,19 +52,22 @@ def integrate_spectrum(spectrum, range_):
 
 def get_det_size(binary_file):
     binary_file.seek(0)
-    bajty = binary_file.read(4)
-    ncols = int.from_bytes(bajty, "little")
+    bites = binary_file.read(4)
+    ncols = int.from_bytes(bites, "little")
 
     binary_file.seek(4)
-    bajty = binary_file.read(4)
-    nrows = int.from_bytes(bajty, "little")
+    bites = binary_file.read(4)
+    nrows = int.from_bytes(bites, "little")
     return nrows, ncols
 
 
 def generate_time_stamps(time_interval, dt):
     start, end = time_interval
     selected_time_stamps = [
-        "{:.3f}".format(i) for i in np.arange(start, end + dt / 100, dt)
+        "{:.3f}".format(i)
+        for i in np.arange(
+            start, end + dt / 100, dt
+        )  ### czy to 100 na pewno jest tu potrzebne?
     ]
     return selected_time_stamps
 
@@ -84,13 +87,15 @@ def get_BGR(file_name):
 @timer
 def get_all_spectra(file_name, lineRange, time_interval, dt):
     # wyznacza intensywnosci wybranych przerzialod czasowych (time interval)
-    start_time = time.time()
-
     with open(file_name, "rb") as binary_file:
         rows_number, cols_number = get_det_size(binary_file)
         idx_start = int(min(time_interval) / dt)
+        # breakpoint()
         idx_end = int(max(time_interval) / dt)
 
+        # checks if number of indexes (set up length of the discharge to be calculated)
+        # is lower than number of rows. If yes - calculates only required number
+        # of rows (required time slot).
         if idx_end < rows_number:
             spectra = list(
                 map(
@@ -99,6 +104,11 @@ def get_all_spectra(file_name, lineRange, time_interval, dt):
                 )
             )
             spec_in_time = pd.DataFrame(spectra).T
+            spec_in_time = spec_in_time[spec_in_time.columns[::-1]]
+            # breakpoint()
+
+            ### bo to wylicza od tylu - dlatego  ucina poczatek - bo pozniej zamieniam, zmienic parametry wywolania albo funkcje
+            ### koneic pliku jest na poczatku a poczatek na koncu;
             return spec_in_time
 
         spectra = list(
@@ -108,7 +118,8 @@ def get_all_spectra(file_name, lineRange, time_interval, dt):
             )
         )
         spec_in_time = pd.DataFrame(spectra).T
-
+        spec_in_time = spec_in_time[spec_in_time.columns[::-1]]
+        # breakpoint()
     return spec_in_time
 
 
@@ -233,7 +244,8 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotte
             f"QSO_{element}_{date}.{discharge_nr}"
         ].round(1)
         df2["utc_timestamps"] = time_stamps
-        df2 = df2.iloc[1:]
+        # breakpoint()
+        df2 = df2.iloc[:-1]
         ### usuwa p[ierwsza ramke w czasie 0s -> w celu usuniecia niefizycznych wartosci
 
         time = list(map(get_time_from_UTC, df2["utc_timestamps"]))
@@ -242,12 +254,8 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotte
             for date in time
         ]
         df2["time"] = x_labels
-        # Wyodrębnienie ostatniej kolumny
-        # last_column = df2.pop(df2.columns[-1])
 
-        # # Wstawienie ostatniej kolumny na początek
-        # df2.insert(0, last_column.name, last_column)
-
+        # breakpoint()
         def save_file():
             destination = (
                 pathlib.Path(__file__).parent.parent.resolve()
@@ -270,6 +278,7 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotte
 
         def plot():
             fig, ax1 = plt.subplots()
+            # plt.style.use("_mpl-gallery")
             ax1.set_title(
                 f"Evolution of the C/O monitor signal intensity.\n {date}.{discharge_nr:03}"
             )
@@ -288,8 +297,8 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotte
                 label="discharge_time",
                 linewidth=0.4,
             )
-
             ax1.tick_params(axis="x", rotation=45)
+            ax1.ticklabel_format(style="sci", axis="y", scilimits=(0, 0))
             ax1.set_ylabel("Intensity [a.u.]")
             ax1.set_xlabel("Local time")
             ax2.set_xlabel("Discharge time [s]")
@@ -301,11 +310,13 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotte
                 / f"{date}"
                 / "img"
             )
+            ax1.grid(which="major")
             plt.tight_layout()  # Dostosowanie rozmiaru obszaru wykresu
             destination.mkdir(parents=True, exist_ok=True)
             plt.savefig(
                 destination
-                / f"QSO_{element}_{date}.{discharge_nr:03}-{file_name.stem}.png"
+                / f"QSO_{element}_{date}.{discharge_nr:03}-{file_name.stem}.png",
+                dpi=200,
             )
             plt.show()
 
