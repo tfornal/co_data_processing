@@ -19,17 +19,20 @@ def generate_dates_list(start_date_str, end_date_str):
     return dates_list
 
 
-# Przykład użycia funkcji
 start_date_str = "20221213"
 end_date_str = "20230405"
 dates_list = generate_dates_list(start_date_str, end_date_str)
-
-print(dates_list)
-
-
-elements = ["C", "O"]
 discharges = [i for i in range(1, 100)]
-time_interval = [0, 1000]
+
+
+dates_list = ["20230118"]  # "20230307"
+
+elements = ["C"]  # , "O"]
+
+discharges = [20]
+time_interval = [3, 13]  ## tyl jest przodem, przod jest tylem
+### gdy mniej niz max dlugosc pliku - ucina poczatek widma - plik binarny tylem do przodu?
+### przy czasie 0-3 s czasy sie sypia!!! TODO
 
 if __name__ == "__main__":
     for element in elements:
@@ -41,4 +44,3 @@ if __name__ == "__main__":
                     )
                 except FileNotFoundError:
                     continue
-#### na osiach rowniey dodac cyasz lokalne z eksperymentow - czas rozpoczecia i zakonczenia, a takze ewentualnie dla sprawdzenia utc
