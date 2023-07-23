@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy import integrate
-
+from yaml import load, dump
 from file_reader import Files
 from utc_converter import get_time_from_UTC
 
@@ -39,12 +39,16 @@ def get_spectrum(binary_file, cols_number, row):
     )
 
 
-def integrate_spectrum(spectrum, range_):
-    line = spectrum[range_[0] : range_[-1]]
+def integrate_spectrum(spectrum, spectrum_range):
+    line = spectrum[spectrum_range[0] : spectrum_range[-1]]
     background = min(line[0], line[-1])
     ### removes the background level (do not mistakenly take as a noise level!)
     line -= background
-    pixels = np.linspace(range_[0], range_[1] - 1, num=range_[1] - range_[0])
+    pixels = np.linspace(
+        spectrum_range[0],
+        spectrum_range[1] - 1,
+        num=spectrum_range[1] - spectrum_range[0],
+    )
     integral = integrate.simps(line, pixels)
 
     return integral
@@ -87,38 +91,67 @@ def get_BGR(file_name):
 @timer
 def get_all_spectra(file_name, lineRange, time_interval, dt):
     # wyznacza intensywnosci wybranych przerzialod czasowych (time interval)
+    ### TODO test!!!!!!
+
+    # time_interval = [0 for i in time_interval if i < 0 else i for i in time_interval]
+
     with open(file_name, "rb") as binary_file:
         rows_number, cols_number = get_det_size(binary_file)
-        idx_start = int(min(time_interval) / dt)
+
+        ### opisa dlaczego tak!!!!!!!!!!!!!!!! TODO
+        aquisition_time = rows_number * dt
+        if float(max(time_interval)) > aquisition_time:
+            idx_end = rows_number - int(aquisition_time / dt)
+        else:
+            idx_end = rows_number - int(max(time_interval) / dt)
+        idx_start = rows_number - int(min(time_interval) / dt)
+        # idx_end =  - idx_end
         # breakpoint()
-        idx_end = int(max(time_interval) / dt)
+
+        # if int(min(time_interval) / dt) < rows_number:
+        #     idx_start = rows_number
 
         # checks if number of indexes (set up length of the discharge to be calculated)
         # is lower than number of rows. If yes - calculates only required number
         # of rows (required time slot).
-        if idx_end < rows_number:
+        ### poprawic idx_end i start tak, aby byl
+        # breakpoint()
+
+        # breakpoint()
+
+        if idx_end >= 0:
             spectra = list(
                 map(
                     lambda row: get_spectrum(binary_file, cols_number, row),
-                    range(idx_start, idx_end),
+                    range(idx_end, idx_start),
                 )
             )
             spec_in_time = pd.DataFrame(spectra).T
             spec_in_time = spec_in_time[spec_in_time.columns[::-1]]
-            # breakpoint()
-
-            ### bo to wylicza od tylu - dlatego  ucina poczatek - bo pozniej zamieniam, zmienic parametry wywolania albo funkcje
-            ### koneic pliku jest na poczatku a poczatek na koncu;
             return spec_in_time
 
-        spectra = list(
-            map(
-                lambda row: get_spectrum(binary_file, cols_number, row),
-                range(idx_start, rows_number),
+        elif idx_start < rows_number:
+            # breakpoint()
+            spectra = list(
+                map(
+                    lambda row: get_spectrum(binary_file, cols_number, row),
+                    range(0, idx_start),
+                )
             )
-        )
-        spec_in_time = pd.DataFrame(spectra).T
-        spec_in_time = spec_in_time[spec_in_time.columns[::-1]]
+            spec_in_time = pd.DataFrame(spectra).T
+            spec_in_time = spec_in_time[spec_in_time.columns[::-1]]
+
+            return spec_in_time
+        else:
+            spectra = list(
+                map(
+                    lambda row: get_spectrum(binary_file, cols_number, row),
+                    range(rows_number),
+                )
+            )
+            spec_in_time = pd.DataFrame(spectra).T
+            spec_in_time = spec_in_time[spec_in_time.columns[::-1]]
+        # spec_in_time = spec_in_time.iloc[::-1]
         # breakpoint()
     return spec_in_time
 
@@ -165,7 +198,14 @@ def calc_utc_timestamps(utc_time, selected_time_stamps, dt):
     return removed
 
 
+def check_if_negative(numbers_list):
+    numbers_list = [num if num >= 0 else 0 for num in numbers_list]
+    return numbers_list
+
+
 def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotter):
+    time_interval = check_if_negative(time_interval)
+
     integral_line_range = {"C": [120, 990], "O": [190, 941]}
     range_ = integral_line_range[f"{element}"]
     file_path = (
@@ -219,7 +259,6 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotte
             selected_time_stamps = generate_time_stamps(time_interval, dt)[
                 : spectra_without_bgr.shape[1]
             ]
-
         #### TODO background jesli go nie ma!!!
         except IndexError:
             spectra_without_bgr = spectra
@@ -244,7 +283,6 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotte
             f"QSO_{element}_{date}.{discharge_nr}"
         ].round(1)
         df2["utc_timestamps"] = time_stamps
-        # breakpoint()
         df2 = df2.iloc[:-1]
         ### usuwa p[ierwsza ramke w czasie 0s -> w celu usuniecia niefizycznych wartosci
 

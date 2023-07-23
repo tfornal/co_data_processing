@@ -30,7 +30,7 @@ dates_list = ["20230118"]  # "20230307"
 elements = ["C"]  # , "O"]
 
 discharges = [20]
-time_interval = [3, 13]  ## tyl jest przodem, przod jest tylem
+time_interval = [-10, 124]  ## tyl jest przodem, przod jest tylem
 ### gdy mniej niz max dlugosc pliku - ucina poczatek widma - plik binarny tylem do przodu?
 ### przy czasie 0-3 s czasy sie sypia!!! TODO
 
