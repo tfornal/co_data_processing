@@ -71,7 +71,7 @@ def validate_time_duration(
     dt,
 ):
     ###
-    pass
+    return time_interval
 
 
 @timer
@@ -102,12 +102,8 @@ def get_BGR(file_name):
 def get_all_spectra(file_name, lineRange, time_interval, dt):
     # wyznacza intensywnosci wybranych przerzialod czasowych (time interval)
     ### TODO test!!!!!!
-
-    # time_interval = [0 for i in time_interval if i < 0 else i for i in time_interval]
-
     with open(file_name, "rb") as binary_file:
         rows_number, cols_number = get_det_size(binary_file)
-
         ### opisa dlaczego tak!!!!!!!!!!!!!!!! TODO
         aquisition_time = rows_number * dt
         if float(max(time_interval)) > aquisition_time:
@@ -175,8 +171,6 @@ def check_if_negative(numbers_list):
 
 
 def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotter):
-    time_interval = check_if_negative(time_interval)
-
     integral_line_range = {"C": [120, 990], "O": [190, 941]}
     range_ = integral_line_range[f"{element}"]
     file_path = (
@@ -218,14 +212,16 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotte
         utc_time = int(exp_info["utc_time"].iloc[0])
         discharge_nr = int(exp_info["discharge_nr"].iloc[0])
         frequency = int(exp_info["frequency"].iloc[0])
-        dt = convert_frequency_to_dt(frequency)
 
+        dt = convert_frequency_to_dt(frequency)
+        time_interval = check_if_negative(time_interval)
+        time_interval = validate_time_duration(time_interval, dt)
+        ########### TODO  time_interval automatycznie dostoswany do rozmiarów pliku - using get_det_size
         spectra = get_all_spectra(file_name, range_, time_interval, dt)
         ### takes last recorded noise signal before the discharge
         try:
             bgr_file_name, bgr_spec = get_BGR(bgr_files[-1])
 
-            ### TODO co jesli nie ma plikow BGR???
             spectra_without_bgr = spectra.iloc[:, :].sub(bgr_spec, axis=0)
             selected_time_stamps = generate_time_stamps(time_interval, dt)[
                 : spectra_without_bgr.shape[1]
