@@ -11,6 +11,7 @@ from file_reader import Files
 from utc_converter import get_time_from_UTC
 
 
+### zrobic to w OOP!!
 def timer(function):
     @wraps(function)
     def wrapper(*args, **kwargs):
@@ -65,6 +66,15 @@ def get_det_size(binary_file):
     return nrows, ncols
 
 
+def validate_time_duration(
+    time_interval,
+    dt,
+):
+    ###
+    pass
+
+
+@timer
 def generate_time_stamps(time_interval, dt):
     start, end = time_interval
     selected_time_stamps = [
@@ -105,54 +115,15 @@ def get_all_spectra(file_name, lineRange, time_interval, dt):
         else:
             idx_end = rows_number - int(max(time_interval) / dt)
         idx_start = rows_number - int(min(time_interval) / dt)
-        # idx_end =  - idx_end
-        # breakpoint()
-
-        # if int(min(time_interval) / dt) < rows_number:
-        #     idx_start = rows_number
-
-        # checks if number of indexes (set up length of the discharge to be calculated)
-        # is lower than number of rows. If yes - calculates only required number
-        # of rows (required time slot).
-        ### poprawic idx_end i start tak, aby byl
-        # breakpoint()
-
-        # breakpoint()
-
-        if idx_end >= 0:
-            spectra = list(
-                map(
-                    lambda row: get_spectrum(binary_file, cols_number, row),
-                    range(idx_end, idx_start),
-                )
+        spectra = list(
+            map(
+                lambda row: get_spectrum(binary_file, cols_number, row),
+                range(idx_end, idx_start),
             )
-            spec_in_time = pd.DataFrame(spectra).T
-            spec_in_time = spec_in_time[spec_in_time.columns[::-1]]
-            return spec_in_time
-
-        elif idx_start < rows_number:
-            # breakpoint()
-            spectra = list(
-                map(
-                    lambda row: get_spectrum(binary_file, cols_number, row),
-                    range(0, idx_start),
-                )
-            )
-            spec_in_time = pd.DataFrame(spectra).T
-            spec_in_time = spec_in_time[spec_in_time.columns[::-1]]
-
-            return spec_in_time
-        else:
-            spectra = list(
-                map(
-                    lambda row: get_spectrum(binary_file, cols_number, row),
-                    range(rows_number),
-                )
-            )
-            spec_in_time = pd.DataFrame(spectra).T
-            spec_in_time = spec_in_time[spec_in_time.columns[::-1]]
-        # spec_in_time = spec_in_time.iloc[::-1]
-        # breakpoint()
+        )
+        spec_in_time = pd.DataFrame(spectra).T
+        spec_in_time = spec_in_time[spec_in_time.columns[::-1]]
+        return spec_in_time
     return spec_in_time
 
 
@@ -305,7 +276,7 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotte
             destination.mkdir(parents=True, exist_ok=True)
             df2.to_csv(
                 destination
-                / f"QSO_{element}_{date}.{discharge_nr:03}-{file_name.stem}.csv",
+                / f"QSO_{element}_{date}.{discharge_nr:03}-{file_name.stem}-time_{min(time_interval)}_{max(time_interval)}s.csv",
                 sep="\t",
                 index=False,
                 header=True,
@@ -353,7 +324,7 @@ def get_discharge_nr_from_csv(element, date, discharge_nr, time_interval, plotte
             destination.mkdir(parents=True, exist_ok=True)
             plt.savefig(
                 destination
-                / f"QSO_{element}_{date}.{discharge_nr:03}-{file_name.stem}.png",
+                / f"QSO_{element}_{date}.{discharge_nr:03}-{file_name.stem}-time_{min(time_interval)}_{max(time_interval)}s.png",
                 dpi=200,
             )
             plt.show()
