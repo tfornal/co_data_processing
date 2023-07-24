@@ -8,7 +8,7 @@ import pandas as pd
 from scipy import integrate
 
 # from yaml import load, dump
-from file_reader import Files
+from file_reader import Files, FilePaths
 from utc_converter import get_time_from_UTC
 
 
@@ -29,10 +29,26 @@ class Intensity:
         self.element = element
         self.date = date
         self.discharge_nr = discharge_nr
-        self.time_interval = time_interval
-        self.df2 = self.get_discharge_nr_from_csv()
+        self.time_interval = self.check_if_negative(time_interval)
+
+        self.fp = self._get_file_paths()
+        self.discharge_nr_file_path = self._get_file_path()
+        self.exp_data_file_path = self._get_exp_data_file_path()
+        self.file_list = self.grab_file_list()
+
+        self.df2 = self.final_calculation()
+        self.df2 = self.make_df()
         if plotter:
             self.plot()
+
+    def _get_file_paths(self):
+        return FilePaths(self.element, self.date)
+
+    def _get_file_path(self):
+        return self.fp.discharge_nrs()
+
+    def _get_exp_data_file_path(self):
+        return self.fp.experimental_data()
 
     def get_pixel_intens(self, binary_file, row, column):
         shift = 4096 + (row - 1) * 3072 + (column - 1) * 3
@@ -73,7 +89,8 @@ class Intensity:
         return nrows, ncols
 
     def validate_time_duration(self):
-        return self.time_interval
+        ### TODO
+        pass
 
     def generate_time_stamps(self, time_interval):
         start, end = time_interval
@@ -119,15 +136,8 @@ class Intensity:
             return spec_in_time
         return spec_in_time
 
-    def get_utc_from_csv(self, file_name, element, date):
-        data_file = (
-            pathlib.Path(__file__).parent.parent.resolve()
-            / "data"
-            / "discharge_numbers"
-            / f"{element}"
-            / f"{element}-{date}.csv"
-        )
-        with open(data_file, "r") as data:
+    def get_utc_from_csv(self, file_name):
+        with open(self.discharge_nr_file_path, "r") as data:
             df = pd.read_csv(
                 data,
                 sep="\t",
@@ -147,8 +157,8 @@ class Intensity:
 
         return exp_info
 
-    def convert_frequency_to_dt(self):
-        return 1 / self.frequency
+    def convert_frequency_to_dt(self, frequency):
+        return 1 / frequency
 
     def calc_utc_timestamps(self, utc_time, selected_time_stamps):
         frames_nr = len(selected_time_stamps)
@@ -162,17 +172,14 @@ class Intensity:
         numbers_list = [num if num >= 0 else 0 for num in numbers_list]
         return numbers_list
 
-    def get_discharge_nr_from_csv(self):
+    def grab_file_list(self):
+        return list(self.exp_data_file_path.glob("**/*"))
+
+    def final_calculation(self):
         integral_line_range = {"C": [120, 990], "O": [190, 941]}
         range_ = integral_line_range[f"{self.element}"]
-        file_path = (
-            pathlib.Path(__file__).parent.parent.resolve()
-            / "data"
-            / "discharge_numbers"
-            / f"{self.element}"
-            / f"{self.element}-{self.date}.csv"
-        )
-        df = pd.read_csv(file_path, sep="\t")
+
+        df = pd.read_csv(self.discharge_nr_file_path, sep="\t")
         if not self.discharge_nr == 0:
             df["discharge_nr"] = df["discharge_nr"].replace("-", "0").astype(int)
             selected_file_names = df.loc[df["discharge_nr"] == self.discharge_nr][
@@ -183,78 +190,74 @@ class Intensity:
             print(f"{self.date}.{self.discharge_nr:03} -> No discharge!")
             return None
 
-        directory = (
-            pathlib.Path(__file__).parent.parent.resolve()
-            / "data"
-            / "exp_data"
-            / self.element
-            / self.date
-        )
-        file_list = list(directory.glob("**/*"))
         discharge_files = [
             x
-            for x in file_list
+            for x in self.file_list
             if x.stat().st_size > 8000
             and x.stem in selected_file_names
             and "BGR" not in x.stem
         ]
-        bgr_files = [x for x in file_list if "BGR" in x.stem in selected_file_names]
+        bgr_files = [
+            x for x in self.file_list if "BGR" in x.stem in selected_file_names
+        ]
+        # def grab_relative_discharge_files(self):
+        #     for file_name in discharge_files:
+
         for file_name in discharge_files:
-            exp_info = self.get_utc_from_csv(file_name, self.element, self.date)
-            utc_time = int(exp_info["utc_time"].iloc[0])
-            self.discharge_nr = int(exp_info["discharge_nr"].iloc[0])
-            self.frequency = int(exp_info["frequency"].iloc[0])
-            self.dt = self.convert_frequency_to_dt()
-            time_interval = self.check_if_negative(self.time_interval)
-            time_interval = self.validate_time_duration()
+            exp_info_df = self.get_utc_from_csv(file_name)
+            utc_time = int(exp_info_df["utc_time"].iloc[0])
+            self.discharge_nr = int(exp_info_df["discharge_nr"].iloc[0])
+            frequency = int(exp_info_df["frequency"].iloc[0])
+            self.dt = self.convert_frequency_to_dt(frequency)
+            breakpoint()
             ########### TODO  time_interval automatycznie dostoswany do rozmiarów pliku - using get_det_size
             spectra = self.get_all_spectra(file_name)
             ### takes last recorded noise signal before the discharge
+
+            ### a moze zastosowac tutaj generator yield?
             try:
                 bgr_file_name, bgr_spec = self.get_BGR(bgr_files[-1])
 
                 spectra_without_bgr = spectra.iloc[:, :].sub(bgr_spec, axis=0)
-                selected_time_stamps = self.generate_time_stamps(time_interval)[
+                selected_time_stamps = self.generate_time_stamps(self.time_interval)[
                     : spectra_without_bgr.shape[1]
                 ]
             #### TODO background jesli go nie ma!!!
             except IndexError:
                 spectra_without_bgr = spectra
-                selected_time_stamps = self.generate_time_stamps(time_interval)[
+                selected_time_stamps = self.generate_time_stamps(self.time_interval)[
                     : spectra_without_bgr.shape[1]
                 ]
-                print("BACKGROUND NOT REMOVED!!!!!!!!!!!!!!!!!!!!!!!! TODO")
+                print("TODO BACKGROUND NOT REMOVED!!!!!!!!!!!!!!!!!!!!!!!!")
             time_stamps = self.calc_utc_timestamps(utc_time, selected_time_stamps)
 
             # intensity = list(map(lambda row: get_spectrum(binary_file, cols_number, row), range(idx_start, idx_end + 1)))
             # intensity = list(map(lambda range_: integrate_spectrum(spectra_without_bgr, range_), range_))############################ zmapowac ponizsza petle
             ##################### TODO DO ZMAPOWANIA
-            intensity = []
-            for i in spectra_without_bgr:
-                integral = self.integrate_spectrum(
-                    np.array(spectra_without_bgr[i]), range_
-                )
-                intensity.append(integral)
-
-            df2 = pd.DataFrame()
-            df2["discharge_time"] = selected_time_stamps
-            df2[f"QSO_{self.element}_{self.date}.{self.discharge_nr}"] = intensity
-            df2[f"QSO_{self.element}_{self.date}.{self.discharge_nr}"] = df2[
-                f"QSO_{self.element}_{self.date}.{self.discharge_nr}"
-            ].round(1)
-            df2["utc_timestamps"] = time_stamps
-            df2 = df2.iloc[:-1]
-            ### usuwa p[ierwsza ramke w czasie 0s -> w celu usuniecia niefizycznych wartosci
-
-            time = list(map(get_time_from_UTC, df2["utc_timestamps"]))
-            x_labels = [
-                self.date.strftime("%H:%M:%S.%f")[:-3]
-                if self.date.microsecond % 1_000 == 0
-                else ""
-                for self.date in time
+            intensity = [
+                self.integrate_spectrum(np.array(spectra_without_bgr[i]), range_)
+                for i in spectra_without_bgr
             ]
-            df2["time"] = x_labels
-            return df2
+
+    def make_df(self):
+        df = pd.DataFrame()
+        df["discharge_time"] = selected_time_stamps
+        df[f"QSO_{self.element}_{self.date}.{self.discharge_nr}"] = intensity
+        df[f"QSO_{self.element}_{self.date}.{self.discharge_nr}"] = df[
+            f"QSO_{self.element}_{self.date}.{self.discharge_nr}"
+        ].round(1)
+        df["utc_timestamps"] = time_stamps
+        df = df.iloc[:-1]
+        ### usuwa p[ierwsza ramke w czasie 0s -> w celu usuniecia niefizycznych wartosci
+
+        time = list(map(get_time_from_UTC, df["utc_timestamps"]))
+        # breakpoint()
+        x_labels = [
+            date.strftime("%H:%M:%S.%f")[:-3] if date.microsecond % 1_000 == 0 else ""
+            for date in time
+        ]
+        df["time"] = x_labels
+        return df
 
     def save_file(self):
         destination = (
@@ -265,9 +268,9 @@ class Intensity:
             / f"{self.date}"
         )
         destination.mkdir(parents=True, exist_ok=True)
-        df2.to_csv(
+        self.df2.to_csv(
             destination
-            / f"QSO_{self.element}_{self.date}.{self.discharge_nr:03}-{file_name.stem}-time_{min(time_interval)}_{max(time_interval)}s.csv",
+            / f"QSO_{self.element}_{self.date}.{self.discharge_nr:03}-{file_name.stem}-time_{min(self.time_interval )}_{max(self.time_interval )}s.csv",
             sep="\t",
             index=False,
             header=True,
@@ -282,7 +285,6 @@ class Intensity:
             f"Evolution of the C/O monitor signal intensity.\n {self.date}.{self.discharge_nr:03}"
         )
         ax2 = ax1.twiny()
-        breakpoint()
         ax1.plot(
             pd.to_datetime(self.df2["time"], format="%H:%M:%S.%f", errors="coerce"),
             self.df2[f"QSO_{self.element}_{self.date}.{self.discharge_nr}"],
@@ -312,9 +314,9 @@ class Intensity:
         ax1.grid(which="major")
         plt.tight_layout()  # Dostosowanie rozmiaru obszaru wykresu
         destination.mkdir(parents=True, exist_ok=True)
-        plt.savefig(
-            destination
-            / f"QSO_{self.element}_{date}.{self.discharge_nr:03}-{file_name.stem}-time_{min(time_interval)}_{max(time_interval)}s.png",
-            dpi=200,
-        )
+        # plt.savefig(
+        #     destination
+        #     / f"QSO_{self.element}_{self.date}.{self.discharge_nr:03}-{file_name.stem}-time_{min(time_interval)}_{max(time_interval)}s.png",
+        #     dpi=200,
+        # )
         plt.show()
