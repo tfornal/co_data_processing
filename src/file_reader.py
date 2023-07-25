@@ -31,6 +31,10 @@ class FilePaths:
         path = self.stem_path / "time_evolutions" / self.element / self.date
         return path
 
+    def images(self):
+        path = self.stem_path / self.time_evolutions() / "img"
+        return path
+
 
 class Files:
     """Retrieves information about directories and files to be processed."""
