@@ -1,8 +1,39 @@
 import pathlib
 
 
+class FilePaths:
+    """Retrieves paths to different folders containing input/output files relative
+    to source code."""
+
+    def __init__(self, element, date):
+        self.element = element
+        self.date = date
+        self.stem_path = self.main_path()
+
+    def main_path(self):
+        stem_path = pathlib.Path(__file__).parent.parent.resolve() / "data"
+        return stem_path
+
+    def discharge_nrs(self):
+        path = (
+            self.stem_path
+            / "discharge_numbers"
+            / self.element
+            / f"{self.element}-{self.date}.csv"
+        )
+        return path
+
+    def experimental_data(self):
+        path = self.stem_path / "exp_data" / self.element / self.date
+        return path
+
+    def time_evolutions(self):
+        path = self.stem_path / "time_evolutions" / self.element / self.date
+        return path
+
+
 class Files:
-    """Retrieves information about directories and files inside them to be processed."""
+    """Retrieves information about directories and files to be processed."""
 
     def __init__(self, path):
         self.path = path
