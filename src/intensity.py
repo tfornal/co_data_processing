@@ -30,12 +30,12 @@ class DischargeNumbers:
         self.date = date
         self.file_name = file_name
         self.discharge_nr_file_path = self._get_specific_file_path()
-        self.discharge_data = self.get_utc_from_csv()
+        self.discharge_data = self.get_discharge_parameters()
 
     def _get_specific_file_path(self):
         return FilePaths(self.element, self.date).discharge_nrs()
 
-    def get_utc_from_csv(self):
+    def get_discharge_parameters(self):
         with open(self.discharge_nr_file_path, "r") as data:
             df = pd.read_csv(
                 data,
@@ -64,35 +64,43 @@ class Files:
 
         self.fp = self._get_file_path_object()
         self.exp_data_file_path = self._get_exp_data_file_path()
-        self.file_list = self.grab_file_list()
+        self.file_list = self._grab_file_list()
         self.discharge_nr_file_path = self._get_specific_file_path()
-        self.selected_file_names = self.select_file_names()
-        self.discharge_files = self.grab_discharge_files()
-        breakpoint()
+        self.selected_file_names = self._select_file_names()
+        self.bgr_files = self._grab_bgr_files()
+        self.discharge_files = self._grab_discharge_files()
 
     def _get_file_path_object(self):
         return FilePaths(self.element, self.date)
 
-    def _get_specific_file_path(self):
-        return self.fp.discharge_nrs()
-
     def _get_exp_data_file_path(self):
         return self.fp.experimental_data()
 
-    def grab_file_list(self):
+    def _grab_file_list(self):
         return list(self.exp_data_file_path.glob("**/*"))
 
-    def select_file_names(self):
+    def _grab_bgr_files(self):
+        bgr_files = [
+            x
+            for x in self._grab_file_list()
+            if "BGR" in x.stem in self.selected_file_names
+        ]
+        return bgr_files
+
+    def _get_specific_file_path(self):
+        return self.fp.discharge_nrs()
+
+    def _select_file_names(self):
         df = pd.read_csv(self.discharge_nr_file_path, sep="\t")
         if self.discharge_nr != 0:
             df["discharge_nr"] = df["discharge_nr"].replace("-", "0").astype(int)
             selected_file_names = df.loc[df["discharge_nr"] == self.discharge_nr][
                 "file_name"
             ].to_list()
+
             return selected_file_names
 
-    def grab_discharge_files(self):
-        # breakpoint()
+    def _grab_discharge_files(self):
         discharge_files = [
             x
             for x in self.file_list
@@ -100,40 +108,27 @@ class Files:
             and x.stem in self.selected_file_names
             and "BGR" not in x.stem
         ]
-        # breakpoint()
-        return discharge_files
 
-    # for file_name in discharge_files:
+        return discharge_files
 
 
 class Intensity:
-    def __init__(self, element, date, discharge_nr, time_interval, plotter=True):
+    def __init__(
+        self, element, date, discharge_nr, file_name, time_interval, plotter=True
+    ):
         self.element = element
         self.date = date
         self.discharge_nr = discharge_nr
+        self.file_name = file_name
         self.time_interval = self.check_if_negative(time_interval)
-
         self.integral_range = self.select_integral_range()
-        self.fp = self._get_file_path_object()
-        self.discharge_nr_file_path = self._get_specific_file_path()
-        self.exp_data_file_path = self._get_exp_data_file_path()
-        self.file_list = self.grab_file_list()
-        self.selected_file_names = self.select_file_names()
-        self.discharge_files = self.grab_discharge_files()
 
         self.calculate_intensity()
-        self.df2 = self.make_df()
+        self.df = self.make_df(save=True)
         if plotter:
-            self.plot_results()
+            self.plot_results(save=True)
 
-    def _get_file_path_object(self):
-        return FilePaths(self.element, self.date)
-
-    def _get_specific_file_path(self):
-        return self.fp.discharge_nrs()
-
-    def _get_exp_data_file_path(self):
-        return self.fp.experimental_data()
+        # self.save_file()
 
     def get_pixel_intens(self, binary_file, row, column):
         shift = 4096 + (row - 1) * 3072 + (column - 1) * 3
@@ -187,21 +182,21 @@ class Intensity:
         ]
         return selected_time_stamps
 
-    def get_BGR(self, file_name):
-        with open(file_name, "rb") as binary_file:
+    def get_BGR(self, bgr_file_name):
+        with open(bgr_file_name, "rb") as binary_file:
             _, cols_number = self.get_det_size(binary_file)
             spec_in_time = pd.DataFrame()
             spectrum = self.get_spectrum(binary_file, cols_number, row=1)
-            spec_header = f"{file_name.stem}"
+            spec_header = f"{bgr_file_name.stem}"
             spec_in_time[spec_header] = spectrum
             col_name = spec_header
 
         return col_name, spectrum
 
-    def get_all_spectra(self, file_name):
+    def get_all_spectra(self):
         # wyznacza intensywnosci wybranych przerzialod czasowych (time interval)
         ### TODO test!!!!!!
-        with open(file_name, "rb") as binary_file:
+        with open(self.file_name, "rb") as binary_file:
             rows_number, cols_number = self.get_det_size(binary_file)
             ### opisa dlaczego tak!!!!!!!!!!!!!!!! TODO
             aquisition_time = rows_number * self.dt
@@ -235,67 +230,27 @@ class Intensity:
         numbers_list = [num if num >= 0 else 0 for num in numbers_list]
         return numbers_list
 
-    def grab_discharge_files(self):
-        # breakpoint()
-        discharge_files = [
-            x
-            for x in self.file_list
-            if x.stat().st_size > 8000
-            and x.stem in self.selected_file_names
-            and "BGR" not in x.stem
-        ]
-        # breakpoint()
-        return discharge_files
-
     def select_integral_range(self):
         ranges_dict = {"C": [120, 990], "O": [190, 941]}
         integral_range = ranges_dict[f"{self.element}"]
         return integral_range
 
-    def select_file_names(self):
-        df = pd.read_csv(self.discharge_nr_file_path, sep="\t")
-        if self.discharge_nr != 0:
-            df["discharge_nr"] = df["discharge_nr"].replace("-", "0").astype(int)
-            selected_file_names = df.loc[df["discharge_nr"] == self.discharge_nr][
-                "file_name"
-            ].to_list()
-            # breakpoint()
-            return selected_file_names
-        # if not selected_file_names:
-
-    def grab_file_list(self):
-        return list(self.exp_data_file_path.glob("**/*"))
-
-        print(f"{self.date}.{self.discharge_nr:03} -> No discharge!")
-        return None
-
-    def grab_bgr_files(self):
-        bgr_files = [
-            x for x in grab_file_list() if "BGR" in x.stem in self.selected_file_names
-        ]
-        return bgr_files
-
     def calculate_intensity(self):
-        # def grab_relative_discharge_files(self):
-        #     for file_name in discharge_files:
-        discharge_files = self.grab_discharge_files()
         for file_name in discharge_files:
             exp_info_df = DischargeNumbers(
-                self.element, self.date, file_name
+                self.element, self.date, self.file_name
             ).discharge_data
-            # exp_info_df = self.get_utc_from_csv(file_name)
             utc_time = int(exp_info_df["utc_time"].iloc[0])
             self.discharge_nr = int(exp_info_df["discharge_nr"].iloc[0])
 
             frequency = int(exp_info_df["frequency"].iloc[0])
             self.dt = self.convert_frequency_to_dt(frequency)
             ########### TODO  time_interval automatycznie dostoswany do rozmiarów pliku - using get_det_size
-            spectra = self.get_all_spectra(file_name)
+            spectra = self.get_all_spectra()
             ### takes last recorded noise signal before the discharge
 
             ### a moze zastosowac tutaj generator yield?
-
-            bgr_files = self.grab_bgr_files()
+            bgr_files = Files(element, date, discharge).bgr_files
 
             try:
                 bgr_file_name, bgr_spec = self.get_BGR(bgr_files[-1])
@@ -315,9 +270,6 @@ class Intensity:
                 utc_time, self.selected_time_stamps
             )
 
-            # intensity = list(map(lambda row: get_spectrum(binary_file, cols_number, row), range(idx_start, idx_end + 1)))
-            # intensity = list(map(lambda   integral_range: integrate_spectrum(spectra_without_bgr,  integral_range),    integral_range))############################ zmapowac ponizsza petle
-            ##################### TODO DO ZMAPOWANIA
             self.intensity = [
                 self.integrate_spectrum(
                     np.array(spectra_without_bgr[i]), self.integral_range
@@ -325,7 +277,7 @@ class Intensity:
                 for i in spectra_without_bgr
             ]
 
-    def make_df(self):
+    def make_df(self, save=True):
         df = pd.DataFrame()
         df["discharge_time"] = self.selected_time_stamps
         df[f"QSO_{self.element}_{self.date}.{self.discharge_nr}"] = self.intensity
@@ -342,23 +294,40 @@ class Intensity:
             for date in time
         ]
         df["time"] = x_labels
+
+        def save_file():
+            path = FilePaths(self.element, self.date).time_evolutions()
+            path.mkdir(parents=True, exist_ok=True)
+            df.to_csv(
+                path
+                / f"QSO_{self.element}_{self.date}.{self.discharge_nr:03}-{file_name.stem}-time_{min(self.time_interval )}_{max(self.time_interval )}s.csv",
+                sep="\t",
+                index=False,
+                header=True,
+            )
+            print(
+                f"QSO_{self.element}_{self.date}.{self.discharge_nr:03} - intensity evolution saved!"
+            )
+
+        if save:
+            save_file()
         return df
 
-    def plot_results(self):
+    def plot_results(self, save=True):
         fig, ax1 = plt.subplots()
         ax1.set_title(
             f"Evolution of the C/O monitor signal intensity.\n {self.date}.{self.discharge_nr:03}"
         )
         ax2 = ax1.twiny()
         ax1.plot(
-            pd.to_datetime(self.df2["time"], format="%H:%M:%S.%f", errors="coerce"),
-            self.df2[f"QSO_{self.element}_{self.date}.{self.discharge_nr}"],
+            pd.to_datetime(self.df["time"], format="%H:%M:%S.%f", errors="coerce"),
+            self.df[f"QSO_{self.element}_{self.date}.{self.discharge_nr}"],
             alpha=0,
         )
 
         ax2.plot(
-            np.asarray(self.df2["discharge_time"], float),
-            self.df2[f"QSO_{self.element}_{self.date}.{self.discharge_nr}"],
+            np.asarray(self.df["discharge_time"], float),
+            self.df[f"QSO_{self.element}_{self.date}.{self.discharge_nr}"],
             color="blue",
             label="discharge_time",
             linewidth=0.4,
@@ -368,69 +337,50 @@ class Intensity:
         ax1.set_ylabel("Intensity [a.u.]")
         ax1.set_xlabel("Local time")
         ax2.set_xlabel("Discharge time [s]")
-        destination = (
-            pathlib.Path(__file__).parent.parent.resolve()
-            / "data"
-            / "time_evolutions"
-            / f"{self.element}"
-            / f"{self.date}"
-            / "img"
-        )
         ax1.grid(which="major")
-        plt.tight_layout()  # Dostosowanie rozmiaru obszaru wykresu
-        destination.mkdir(parents=True, exist_ok=True)
-        # plt.savefig(
-        #     destination
-        #     / f"QSO_{self.element}_{self.date}.{self.discharge_nr:03}-{self.file_name.stem}-time_{min(self.time_interval)}_{max(self.time_interval)}s.png",
-        #     dpi=200,
-        # )
-        plt.show()
+        plt.tight_layout()
 
-    # def save_file(self):
-    #     destination = (
-    #         pathlib.Path(__file__).parent.parent.resolve()
-    #         / "data"
-    #         / "time_evolutions"
-    #         / f"{self.element}"
-    #         / f"{self.date}"
-    #     )
-    #     destination.mkdir(parents=True, exist_ok=True)
-    #     self.df2.to_csv(
-    #         destination
-    #         / f"QSO_{self.element}_{self.date}.{self.discharge_nr:03}-{file_name.stem}-time_{min(self.time_interval )}_{max(self.time_interval )}s.csv",
-    #         sep="\t",
-    #         index=False,
-    #         header=True,
-    #     )
-    #     print(
-    #         f"QSO_{self.element}_{self.date}.{self.discharge_nr:03} - intensity evolution saved!"
-    #     )
+        def save_fig():
+            path = FilePaths(self.element, self.date).images()
+            path.mkdir(parents=True, exist_ok=True)
+
+            plt.savefig(
+                path
+                / f"QSO_{self.element}_{self.date}.{self.discharge_nr:03}-{self.file_name.stem}-time_{min(self.time_interval)}_{max(self.time_interval)}s.png",
+                dpi=200,
+            )
+
+        if save:
+            save_fig()
+
+        plt.show()
 
 
 def get_exp_data_file_path():
     return FilePaths(element, date).experimental_data()
 
 
-def grab_file_list():
-    return list(get_exp_data_file_path().glob("**/*"))
-
-
 dates_list = ["20230118"]  # "20230307"
-elements = ["C"]  # , "O"]
-discharges = [20]
-time_interval = [-12, 6]  ### ponizej 5s czas time jest zly? 29h...
-### gdy mniej niz max dlugosc pliku - ucina poczatek widma - plik binarny tylem do przodu?
-### przy czasie 0-3 s czasy sie sypia!!! TODO
+elements_list = ["C"]  # , "O"]
+discharges_list = [20]
+time_interval = [-12, 6]  ### ponizej 5s czas time jest zly? 29h... TODO
 
 if __name__ == "__main__":
-    for element in elements:
+    for element in elements_list:
         for date in dates_list:
-            for shot in discharges:
+            for discharge in discharges_list:
                 try:
-                    Files(element, date, shot)
-                    # Intensity(element, date, shot, time_interval, plotter=True)
-                    # file_list = grab_file_list()
-
-                    # discharge_file_list = grab_discharge_files(file_list)
+                    f = Files(element, date, discharge)
+                    discharge_files = f.discharge_files
+                    # breakpoint()
+                    for file_name in discharge_files:
+                        Intensity(
+                            element,
+                            date,
+                            discharge,
+                            file_name,
+                            time_interval,
+                            plotter=True,
+                        )
                 except FileNotFoundError:
                     continue
