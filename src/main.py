@@ -1,5 +1,6 @@
 # import time
-from intensity import get_discharge_nr_from_csv
+from intensity import Intensity
+from intensity2 import get_discharge_nr_from_csv
 import time
 from datetime import datetime, timedelta
 
@@ -24,13 +25,12 @@ end_date_str = "20230405"
 dates_list = generate_dates_list(start_date_str, end_date_str)
 discharges = [i for i in range(1, 100)]
 
-
 dates_list = ["20230118"]  # "20230307"
 
 elements = ["C"]  # , "O"]
 
 discharges = [20]
-time_interval = [-10, 124]  ## tyl jest przodem, przod jest tylem
+time_interval = [-12, 6]  ### ponizej 5s czas time jest zly? 29h...
 ### gdy mniej niz max dlugosc pliku - ucina poczatek widma - plik binarny tylem do przodu?
 ### przy czasie 0-3 s czasy sie sypia!!! TODO
 
@@ -39,6 +39,7 @@ if __name__ == "__main__":
         for date in dates_list:
             for shot in discharges:
                 try:
+                    # Intensity(element, date, shot, time_interval, plotter=True)
                     get_discharge_nr_from_csv(
                         element, date, shot, time_interval, plotter=True
                     )
