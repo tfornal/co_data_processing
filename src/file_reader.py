@@ -1,4 +1,5 @@
 import pathlib
+import pandas as pd
 
 
 class FilePaths:
@@ -67,3 +68,59 @@ class Files:
         ]
 
         return file_sizes
+
+
+class ExperimentalFiles:
+    def __init__(self, element, date, discharge_nr):
+        self.element = element
+        self.date = date
+        self.discharge_nr = discharge_nr
+
+        self.fp = self._get_file_path_object()
+        self.exp_data_file_path = self._get_exp_data_file_path()
+        self.file_list = self._grab_file_list()
+        self.discharge_nr_file_path = self._get_specific_file_path()
+        self.selected_file_names = self._select_file_names()
+        self.bgr_files = self._grab_bgr_files()
+        self.discharge_files = self._grab_discharge_files()
+
+    def _get_file_path_object(self):
+        return FilePaths(self.element, self.date)
+
+    def _get_exp_data_file_path(self):
+        return self.fp.experimental_data()
+
+    def _grab_file_list(self):
+        return list(self.exp_data_file_path.glob("**/*"))
+
+    def _grab_bgr_files(self):
+        bgr_files = [
+            x
+            for x in self._grab_file_list()
+            if "BGR" in x.stem in self.selected_file_names
+        ]
+        return bgr_files
+
+    def _get_specific_file_path(self):
+        return self.fp.discharge_nrs()
+
+    def _select_file_names(self):
+        df = pd.read_csv(self.discharge_nr_file_path, sep="\t")
+        if self.discharge_nr != 0:
+            df["discharge_nr"] = df["discharge_nr"].replace("-", "0").astype(int)
+            selected_file_names = df.loc[df["discharge_nr"] == self.discharge_nr][
+                "file_name"
+            ].to_list()
+
+            return selected_file_names
+
+    def _grab_discharge_files(self):
+        discharge_files = [
+            x
+            for x in self.file_list
+            if x.stat().st_size > 8000
+            and x.stem in self.selected_file_names
+            and "BGR" not in x.stem
+        ]
+
+        return discharge_files
