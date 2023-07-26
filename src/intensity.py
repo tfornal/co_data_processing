@@ -8,7 +8,7 @@ import pandas as pd
 from scipy import integrate
 
 # from yaml import load, dump
-from file_reader import Files, FilePaths
+from file_reader import Files, FilePaths, ExperimentalFiles
 from utc_converter import get_time_from_UTC
 
 
@@ -56,60 +56,60 @@ class DischargeNumbers:
         return discharge_data
 
 
-class ExperimentalFiles:
-    def __init__(self, element, date, discharge_nr):
-        self.element = element
-        self.date = date
-        self.discharge_nr = discharge_nr
+# class ExperimentalFiles:
+#     def __init__(self, element, date, discharge_nr):
+#         self.element = element
+#         self.date = date
+#         self.discharge_nr = discharge_nr
 
-        self.fp = self._get_file_path_object()
-        self.exp_data_file_path = self._get_exp_data_file_path()
-        self.file_list = self._grab_file_list()
-        self.discharge_nr_file_path = self._get_specific_file_path()
-        self.selected_file_names = self._select_file_names()
-        self.bgr_files = self._grab_bgr_files()
-        self.discharge_files = self._grab_discharge_files()
+#         self.fp = self._get_file_path_object()
+#         self.exp_data_file_path = self._get_exp_data_file_path()
+#         self.file_list = self._grab_file_list()
+#         self.discharge_nr_file_path = self._get_specific_file_path()
+#         self.selected_file_names = self._select_file_names()
+#         self.bgr_files = self._grab_bgr_files()
+#         self.discharge_files = self._grab_discharge_files()
 
-    def _get_file_path_object(self):
-        return FilePaths(self.element, self.date)
+#     def _get_file_path_object(self):
+#         return FilePaths(self.element, self.date)
 
-    def _get_exp_data_file_path(self):
-        return self.fp.experimental_data()
+#     def _get_exp_data_file_path(self):
+#         return self.fp.experimental_data()
 
-    def _grab_file_list(self):
-        return list(self.exp_data_file_path.glob("**/*"))
+#     def _grab_file_list(self):
+#         return list(self.exp_data_file_path.glob("**/*"))
 
-    def _grab_bgr_files(self):
-        bgr_files = [
-            x
-            for x in self._grab_file_list()
-            if "BGR" in x.stem in self.selected_file_names
-        ]
-        return bgr_files
+#     def _grab_bgr_files(self):
+#         bgr_files = [
+#             x
+#             for x in self._grab_file_list()
+#             if "BGR" in x.stem in self.selected_file_names
+#         ]
+#         return bgr_files
 
-    def _get_specific_file_path(self):
-        return self.fp.discharge_nrs()
+#     def _get_specific_file_path(self):
+#         return self.fp.discharge_nrs()
 
-    def _select_file_names(self):
-        df = pd.read_csv(self.discharge_nr_file_path, sep="\t")
-        if self.discharge_nr != 0:
-            df["discharge_nr"] = df["discharge_nr"].replace("-", "0").astype(int)
-            selected_file_names = df.loc[df["discharge_nr"] == self.discharge_nr][
-                "file_name"
-            ].to_list()
+#     def _select_file_names(self):
+#         df = pd.read_csv(self.discharge_nr_file_path, sep="\t")
+#         if self.discharge_nr != 0:
+#             df["discharge_nr"] = df["discharge_nr"].replace("-", "0").astype(int)
+#             selected_file_names = df.loc[df["discharge_nr"] == self.discharge_nr][
+#                 "file_name"
+#             ].to_list()
 
-            return selected_file_names
+#             return selected_file_names
 
-    def _grab_discharge_files(self):
-        discharge_files = [
-            x
-            for x in self.file_list
-            if x.stat().st_size > 8000
-            and x.stem in self.selected_file_names
-            and "BGR" not in x.stem
-        ]
+#     def _grab_discharge_files(self):
+#         discharge_files = [
+#             x
+#             for x in self.file_list
+#             if x.stat().st_size > 8000
+#             and x.stem in self.selected_file_names
+#             and "BGR" not in x.stem
+#         ]
 
-        return discharge_files
+#         return discharge_files
 
 
 class Intensity:
@@ -245,7 +245,7 @@ class Intensity:
         ### TODO test!!!!!!
         with open(self.file_name, "rb") as binary_file:
             rows_number, cols_number = self.get_det_size(binary_file)
-            ### opisa dlaczego tak!!!!!!!!!!!!!!!! TODO
+            ### opisac dlaczego tak!!!!!!!!!!!!!!!! TODO
             aquisition_time = rows_number * self.dt
             if float(max(self.time_interval)) > aquisition_time:
                 idx_end = rows_number - int(aquisition_time / self.dt)
@@ -272,10 +272,8 @@ class Intensity:
 
     def calculate_intensity(self):
         ########### TODO  time_interval automatycznie dostoswany do rozmiarów pliku - using get_det_size
-
         ### takes last recorded noise signal before the discharge
         # bgr_files = Files(element, date, discharge).bgr_files
-
         try:
             _, bgr_spec = self.get_BGR(self.bgr_files[-1])
 
@@ -332,7 +330,7 @@ class Intensity:
     def plot_results(self, save=True):
         fig, ax1 = plt.subplots()
         ax1.set_title(
-            f"{self.element} Lyman-alpha - intensity evolution.\n {self.date}.{self.discharge_nr:03}"
+            f"{self.element} Lyman-alpha - intensity evolution\n {self.date}.{self.discharge_nr:03}"
         )
         ax2 = ax1.twiny()
         ax1.plot(
@@ -370,14 +368,15 @@ class Intensity:
             save_fig()
 
         plt.show()
+        plt.close()
 
-
-dates_list = ["20230118"]  # "20230307"
-elements_list = ["O"]  # , "O"]
-discharges_list = [20]
-time_interval = [-12, 6]  ### ponizej 5s czas time jest zly? 29h... TODO
 
 if __name__ == "__main__":
+    dates_list = ["20230118"]
+    elements_list = ["C"]  # , "O"]
+    discharges_list = [20]
+    time_interval = [-12, 6000]  ### ponizej 5s czas time jest zly? 29h... TODO
+
     for element in elements_list:
         for date in dates_list:
             for discharge in discharges_list:
