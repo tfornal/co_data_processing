@@ -4,6 +4,8 @@ import requests
 import pandas as pd
 import pathlib
 
+from file_reader import FilePathManager
+
 
 class Triggers:
     """Retrieves and processes information about experimental programs from the web API. The API returns information about programs in a JSON format."""
@@ -21,7 +23,9 @@ class Triggers:
             Whether the processed data should be saved as a csv file, by default False.
         """
         self.date = str(date)
+        self.trigger_path = FilePathManager(None, self.date).program_triggers()
         self.triggers_df = self.read_from_file()
+
         if self.triggers_df is None:
             self.year, self.month, self.day = self.convert_date(self.date)
             self.beginning_of_the_day, self.end_of_the_day = self._convert_to_UTC()
@@ -34,11 +38,7 @@ class Triggers:
     def read_from_file(self):
         try:
             triggers_df = pd.read_csv(
-                pathlib.Path(__file__).parent.parent.resolve()
-                / "data"
-                / "program_triggers"
-                / f"{self.date}_triggers.csv",
-                sep="\t",
+                self.trigger_path / f"{self.date}_triggers.csv", sep="\t"
             )
             return triggers_df
 
@@ -144,12 +144,7 @@ class Triggers:
         return triggers_df
 
     def save_file(self):
-        destination = (
-            pathlib.Path(__file__).parent.parent.resolve()
-            / "data_processing"
-            / "program_triggers"
-        )
-        destination.mkdir(parents=True, exist_ok=True)
+        self.trigger_path.mkdir(parents=True, exist_ok=True)
         self.triggers_df.to_csv(
             destination / f"{self.date}_triggers.csv", sep="\t", index=False
         )
@@ -158,4 +153,4 @@ class Triggers:
 
 if __name__ == "__main__":
     date = "20230215"
-    Triggers(date, savefile=True)
+    df = Triggers(date, savefile=True).triggers_df
