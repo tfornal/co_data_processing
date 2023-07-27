@@ -38,7 +38,7 @@ class Intensity:
         self.discharge_nr = discharge_nr
         self.file_name = file_name
 
-        self.file_path_manager = FilePathManager(self.element, self.date)
+        self.fpm_object = FilePathManager(self.element, self.date)
         self.exp_info_df = DischargeDataExtractor(
             self.element, self.date, self.file_name
         ).discharge_data
@@ -220,7 +220,7 @@ class Intensity:
         df["time"] = x_labels
 
         def save_file():
-            path = self.file_path_manager.time_evolutions()
+            path = self.fpm_object.time_evolutions()
             path.mkdir(parents=True, exist_ok=True)
             df.to_csv(
                 path
@@ -265,7 +265,7 @@ class Intensity:
         plt.tight_layout()
 
         def save_fig():
-            path = self.file_path_manager.images()
+            path = self.fpm_object.images()
             path.mkdir(parents=True, exist_ok=True)
 
             plt.savefig(
