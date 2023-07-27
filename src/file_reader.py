@@ -2,7 +2,7 @@ import pathlib
 import pandas as pd
 
 
-class FilePaths:
+class FilePathManager:
     """Retrieves paths to different folders containing input/output files relative
     to source code."""
 
@@ -37,8 +37,8 @@ class FilePaths:
         return path
 
 
-class Files:
-    """Retrieves information about directories and files to be processed."""
+class FileInformationCollector:
+    """Retrieves list of all files in a directory and their sizes."""
 
     def __init__(self, path):
         self.path = path
@@ -70,57 +70,115 @@ class Files:
         return file_sizes
 
 
-class ExperimentalFiles:
+class FileListExtractor:
+    """Grabs all file names containing experimental and background data
+    related to the given experimental discharge number."""
+
     def __init__(self, element, date, discharge_nr):
         self.element = element
         self.date = date
         self.discharge_nr = discharge_nr
 
-        self.fp = self._get_file_path_object()
-        self.exp_data_file_path = self._get_exp_data_file_path()
-        self.file_list = self._grab_file_list()
-        self.discharge_nr_file_path = self._get_specific_file_path()
-        self.selected_file_names = self._select_file_names()
-        self.bgr_files = self._grab_bgr_files()
-        self.discharge_files = self._grab_discharge_files()
+        self.fp = FilePathManager(self.element, self.date)
+        self.discharge_nr_file_path = self.fp.discharge_nrs()
+        self.exp_data_file_path = self.fp.experimental_data()
 
-    def _get_file_path_object(self):
-        return FilePaths(self.element, self.date)
+        self.all_file_list = self.grab_all_file_list()
+        self.selected_file_names = self.select_file_names()
 
-    def _get_exp_data_file_path(self):
-        return self.fp.experimental_data()
-
-    def _grab_file_list(self):
+    def grab_all_file_list(self):
         return list(self.exp_data_file_path.glob("**/*"))
 
-    def _grab_bgr_files(self):
-        bgr_files = [
-            x
-            for x in self._grab_file_list()
-            if "BGR" in x.stem in self.selected_file_names
-        ]
-        return bgr_files
+    def select_file_names(self):
+        """Returns list of files that mathes the given date and discharge number."""
 
-    def _get_specific_file_path(self):
-        return self.fp.discharge_nrs()
-
-    def _select_file_names(self):
         df = pd.read_csv(self.discharge_nr_file_path, sep="\t")
         if self.discharge_nr != 0:
             df["discharge_nr"] = df["discharge_nr"].replace("-", "0").astype(int)
             selected_file_names = df.loc[df["discharge_nr"] == self.discharge_nr][
                 "file_name"
             ].to_list()
-
             return selected_file_names
+
+
+class BackgroundFilesSelector(FileListExtractor):
+    """Grabs all file names containing background data
+    related to the given experimental discharge number."""
+
+    def __init__(self, element, date, discharge_nr):
+        super().__init__(element, date, discharge_nr)
+        self.discharge_nr = discharge_nr
+        self.bgr_files = self.grab_bgr_files()
+
+    def select_file_names(self):
+        """Returns list of files that mathes the given date and discharge number."""
+
+        df = pd.read_csv(self.discharge_nr_file_path, sep="\t")
+        if self.discharge_nr != 0:
+            df["discharge_nr"] = df["discharge_nr"].replace("-", "0").astype(int)
+            selected_file_names = df.loc[df["discharge_nr"] == self.discharge_nr][
+                "file_name"
+            ].to_list()
+            return selected_file_names
+
+    def grab_all_file_list(self):
+        return list(self.exp_data_file_path.glob("**/*"))
+
+    def grab_bgr_files(self):
+        bgr_files = [
+            x
+            for x in self.all_file_list
+            if "BGR" in x.stem and x.stem in self.selected_file_names
+        ]
+        return bgr_files
+
+
+class DischargeFilesSelector(FileListExtractor):
+    """Grabs all file names containing experimental data
+    related to the given experimental discharge number."""
+
+    def __init__(self, element, date, discharge_nr):
+        super().__init__(element, date, discharge_nr)
+        self.discharge_files = self._grab_discharge_files()
 
     def _grab_discharge_files(self):
         discharge_files = [
             x
-            for x in self.file_list
+            for x in self.all_file_list
             if x.stat().st_size > 8000
             and x.stem in self.selected_file_names
             and "BGR" not in x.stem
         ]
-
         return discharge_files
+
+
+class DischargeDataExtractor:
+    def __init__(self, element, date, file_name):
+        self.element = element
+        self.date = date
+        self.file_name = file_name
+        self.discharge_nr_file_path = self._get_specific_file_path()
+        self.discharge_data = self.get_discharge_parameters()
+
+    def _get_specific_file_path(self):
+        return FilePathManager(self.element, self.date).discharge_nrs()
+
+    def get_discharge_parameters(self):
+        with open(self.discharge_nr_file_path, "r") as data:
+            df = pd.read_csv(
+                data,
+                sep="\t",
+                usecols=[
+                    "date",
+                    "discharge_nr",
+                    "file_name",
+                    "time",
+                    "type_of_data",
+                    "file_size",
+                    "utc_time",
+                    "frequency",
+                ],
+            )
+            df = df.astype({"date": int})
+            discharge_data = df.loc[df["file_name"] == self.file_name.stem]
+        return discharge_data

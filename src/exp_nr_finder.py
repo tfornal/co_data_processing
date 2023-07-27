@@ -11,7 +11,7 @@ import numpy as np
 import calendar
 import pandas as pd
 
-from file_reader import Files
+from file_reader import FileInformationCollector
 from triggers import Triggers
 
 
@@ -34,7 +34,7 @@ class ExpAssignment:
         self.element = element
         self.path = path
 
-        self.fobject = self._get_file_object()
+        self.fobject = FileInformationCollector(self.path)
         self.file_list = self._get_file_list()
         self.file_sizes = self._get_file_sizes()
         self.date = self._get_date_from_files()
@@ -48,9 +48,6 @@ class ExpAssignment:
 
         if savefile:
             self.save_file()
-
-    def _get_file_object(self):
-        return Files(self.path)
 
     def _get_file_list(self):
         return self.fobject.file_list

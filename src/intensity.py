@@ -8,7 +8,11 @@ import pandas as pd
 from scipy import integrate
 
 # from yaml import load, dump
-from file_reader import Files, FilePaths, ExperimentalFiles
+from file_reader import (
+    FilePathManager,
+    ExperimentalDataSelector,
+    DischargeDataExtractor,
+)
 from utc_converter import get_time_from_UTC
 
 
@@ -24,94 +28,6 @@ def timer(function):
     return wrapper
 
 
-class DischargeNumbers:
-    def __init__(self, element, date, file_name):
-        self.element = element
-        self.date = date
-        self.file_name = file_name
-        self.discharge_nr_file_path = self._get_specific_file_path()
-        self.discharge_data = self.get_discharge_parameters()
-
-    def _get_specific_file_path(self):
-        return FilePaths(self.element, self.date).discharge_nrs()
-
-    def get_discharge_parameters(self):
-        with open(self.discharge_nr_file_path, "r") as data:
-            df = pd.read_csv(
-                data,
-                sep="\t",
-                usecols=[
-                    "date",
-                    "discharge_nr",
-                    "file_name",
-                    "time",
-                    "type_of_data",
-                    "file_size",
-                    "utc_time",
-                    "frequency",
-                ],
-            )
-            df = df.astype({"date": int})
-            discharge_data = df.loc[df["file_name"] == self.file_name.stem]
-        return discharge_data
-
-
-# class ExperimentalFiles:
-#     def __init__(self, element, date, discharge_nr):
-#         self.element = element
-#         self.date = date
-#         self.discharge_nr = discharge_nr
-
-#         self.fp = self._get_file_path_object()
-#         self.exp_data_file_path = self._get_exp_data_file_path()
-#         self.file_list = self._grab_file_list()
-#         self.discharge_nr_file_path = self._get_specific_file_path()
-#         self.selected_file_names = self._select_file_names()
-#         self.bgr_files = self._grab_bgr_files()
-#         self.discharge_files = self._grab_discharge_files()
-
-#     def _get_file_path_object(self):
-#         return FilePaths(self.element, self.date)
-
-#     def _get_exp_data_file_path(self):
-#         return self.fp.experimental_data()
-
-#     def _grab_file_list(self):
-#         return list(self.exp_data_file_path.glob("**/*"))
-
-#     def _grab_bgr_files(self):
-#         bgr_files = [
-#             x
-#             for x in self._grab_file_list()
-#             if "BGR" in x.stem in self.selected_file_names
-#         ]
-#         return bgr_files
-
-#     def _get_specific_file_path(self):
-#         return self.fp.discharge_nrs()
-
-#     def _select_file_names(self):
-#         df = pd.read_csv(self.discharge_nr_file_path, sep="\t")
-#         if self.discharge_nr != 0:
-#             df["discharge_nr"] = df["discharge_nr"].replace("-", "0").astype(int)
-#             selected_file_names = df.loc[df["discharge_nr"] == self.discharge_nr][
-#                 "file_name"
-#             ].to_list()
-
-#             return selected_file_names
-
-#     def _grab_discharge_files(self):
-#         discharge_files = [
-#             x
-#             for x in self.file_list
-#             if x.stat().st_size > 8000
-#             and x.stem in self.selected_file_names
-#             and "BGR" not in x.stem
-#         ]
-
-#         return discharge_files
-
-
 class Intensity:
     def __init__(
         self, element, date, discharge_nr, file_name, time_interval, plotter=True
@@ -120,6 +36,7 @@ class Intensity:
         self.date = date
         self.discharge_nr = discharge_nr
         self.file_name = file_name
+        self.file_path_manager = FilePathManager(self.element, self.date)
 
         self.exp_info_df = self._get_discharge_info()
         self.utc_time_of_saved_file = self._get_utc_time()
@@ -135,7 +52,6 @@ class Intensity:
             self.utc_time_of_saved_file, self.selected_time_stamps
         )
         self.intensity = self.get_intensity()
-
         self.df = self.make_df(save=True)
         if plotter:
             self.plot_results(save=True)
@@ -150,7 +66,7 @@ class Intensity:
         return intensity
 
     def _get_discharge_info(self):
-        exp_info_df = DischargeNumbers(
+        exp_info_df = DischargeDataExtractor(
             self.element, self.date, self.file_name
         ).discharge_data
         return exp_info_df
@@ -162,7 +78,7 @@ class Intensity:
         return int(self.exp_info_df["frequency"].iloc[0])
 
     def _get_bgr_files(self):
-        ef = ExperimentalFiles(self.element, self.date, self.discharge_nr)
+        ef = ExperimentalDataSelector(self.element, self.date, self.discharge_nr)
         return ef.bgr_files
 
     def check_if_negative(self, numbers_list):
@@ -192,17 +108,16 @@ class Intensity:
         )
 
     def integrate_spectrum(self, spectrum, spectrum_range):
-        line = spectrum[spectrum_range[0] : spectrum_range[-1]]
-        background = min(line[0], line[-1])
-        ### removes the background level (do not mistakenly take as a noise level!)
-        line -= background
-        pixels = np.linspace(
-            spectrum_range[0],
-            spectrum_range[1] - 1,
-            num=spectrum_range[1] - spectrum_range[0],
-        )
-        integral = integrate.simps(line, pixels)
-
+        # Extract the specified range of the spectrum
+        selected_spectrum = spectrum[spectrum_range[0] : spectrum_range[1] + 1]
+        # Calculate the background level as the minimum value of the first and last data points in the range
+        background = min(selected_spectrum[0], selected_spectrum[-1])
+        # Subtract the background level from the spectrum (removing the background)
+        spectrum_without_background = selected_spectrum - background
+        # Create an array of pixel indices corresponding to the selected spectrum range
+        pixels = np.arange(spectrum_range[0], spectrum_range[1] + 1)
+        # Integrate the spectrum using Simpson's rule
+        integral = integrate.simps(spectrum_without_background, pixels)
         return integral
 
     def get_det_size(self, binary_file):
@@ -222,10 +137,7 @@ class Intensity:
     def generate_time_stamps(self, time_interval):
         start, end = time_interval
         selected_time_stamps = [
-            "{:.3f}".format(i)
-            for i in np.arange(
-                start, end + self.dt / 100, self.dt
-            )  ### czy to 100 na pewno jest tu potrzebne?
+            "{:.3f}".format(i) for i in np.arange(start, end + self.dt, self.dt)
         ]
         return selected_time_stamps
 
@@ -310,7 +222,7 @@ class Intensity:
         df["time"] = x_labels
 
         def save_file():
-            path = FilePaths(self.element, self.date).time_evolutions()
+            path = self.file_path_manager.time_evolutions()
             path.mkdir(parents=True, exist_ok=True)
             df.to_csv(
                 path
@@ -355,7 +267,7 @@ class Intensity:
         plt.tight_layout()
 
         def save_fig():
-            path = FilePaths(self.element, self.date).images()
+            path = self.file_path_manager.images()
             path.mkdir(parents=True, exist_ok=True)
 
             plt.savefig(
@@ -373,17 +285,16 @@ class Intensity:
 
 if __name__ == "__main__":
     dates_list = ["20230118"]
-    elements_list = ["C"]  # , "O"]
+    elements_list = ["C"]
     discharges_list = [20]
-    time_interval = [-12, 6000]  ### ponizej 5s czas time jest zly? 29h... TODO
+    time_interval = [-12, 5]  ### ponizej 5s czas time jest zly? 29h... TODO
 
     for element in elements_list:
         for date in dates_list:
             for discharge in discharges_list:
                 try:
-                    f = ExperimentalFiles(element, date, discharge)
+                    f = ExperimentalDataSelector(element, date, discharge)
                     discharge_files = f.discharge_files
-                    # breakpoint()
                     for file_name in discharge_files:
                         Intensity(
                             element,
