@@ -10,8 +10,9 @@ from scipy import integrate
 # from yaml import load, dump
 from file_reader import (
     FilePathManager,
-    ExperimentalDataSelector,
+    DischargeFilesSelector,
     DischargeDataExtractor,
+    BackgroundFilesSelector,
 )
 from utc_converter import get_time_from_UTC
 
@@ -36,9 +37,12 @@ class Intensity:
         self.date = date
         self.discharge_nr = discharge_nr
         self.file_name = file_name
-        self.file_path_manager = FilePathManager(self.element, self.date)
 
-        self.exp_info_df = self._get_discharge_info()
+        self.file_path_manager = FilePathManager(self.element, self.date)
+        self.exp_info_df = DischargeDataExtractor(
+            self.element, self.date, self.file_name
+        ).discharge_data
+
         self.utc_time_of_saved_file = self._get_utc_time()
         self.frequency = self._get_frequency()
         self.bgr_files = self._get_bgr_files()
@@ -65,12 +69,6 @@ class Intensity:
         ]
         return intensity
 
-    def _get_discharge_info(self):
-        exp_info_df = DischargeDataExtractor(
-            self.element, self.date, self.file_name
-        ).discharge_data
-        return exp_info_df
-
     def _get_utc_time(self):
         return int(self.exp_info_df["utc_time"].iloc[0])
 
@@ -78,7 +76,7 @@ class Intensity:
         return int(self.exp_info_df["frequency"].iloc[0])
 
     def _get_bgr_files(self):
-        ef = ExperimentalDataSelector(self.element, self.date, self.discharge_nr)
+        ef = BackgroundFilesSelector(self.element, self.date, self.discharge_nr)
         return ef.bgr_files
 
     def check_if_negative(self, numbers_list):
@@ -281,29 +279,3 @@ class Intensity:
 
         plt.show()
         plt.close()
-
-
-if __name__ == "__main__":
-    dates_list = ["20230118"]
-    elements_list = ["C"]
-    discharges_list = [20]
-    time_interval = [-12, 5]  ### ponizej 5s czas time jest zly? 29h... TODO
-
-    for element in elements_list:
-        for date in dates_list:
-            for discharge in discharges_list:
-                try:
-                    f = ExperimentalDataSelector(element, date, discharge)
-                    discharge_files = f.discharge_files
-                    for file_name in discharge_files:
-                        Intensity(
-                            element,
-                            date,
-                            discharge,
-                            file_name,
-                            time_interval,
-                            plotter=True,
-                        )
-                except FileNotFoundError:
-                    print("No matching file found! Continue...")
-                    continue
