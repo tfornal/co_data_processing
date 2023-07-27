@@ -16,16 +16,15 @@ class FilePathManager:
         return stem_path
 
     def discharge_nrs(self):
-        path = (
-            self.stem_path
-            / "discharge_numbers"
-            / self.element
-            / f"{self.element}-{self.date}.csv"
-        )
+        path = self.stem_path / "discharge_numbers" / self.element
         return path
 
     def experimental_data(self):
         path = self.stem_path / "exp_data" / self.element / self.date
+        return path
+
+    def experimental_data_parameters(self):
+        path = self.stem_path / "exp_data_parameters"
         return path
 
     def program_triggers(self):
