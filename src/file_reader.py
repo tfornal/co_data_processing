@@ -112,10 +112,9 @@ class BackgroundFilesSelector(FileListExtractor):
 
     def __init__(self, element, date, discharge_nr):
         super().__init__(element, date, discharge_nr)
-        self.discharge_nr = discharge_nr
-        self.bgr_files = self.grab_bgr_files()
+        self.bgr_files = self.grab_bgr_files(discharge_nr)
 
-    def select_file_names(self):
+    def select_file_names(self, discharge_nr):
         """Returns list of files that mathes the given date and discharge number."""
 
         df = pd.read_csv(self.discharge_nr_file_path, sep="\t")

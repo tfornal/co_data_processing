@@ -11,7 +11,7 @@ import numpy as np
 import calendar
 import pandas as pd
 
-from file_reader import FileInformationCollector
+from file_reader import FileInformationCollector, FilePathManager
 from triggers import Triggers
 
 
@@ -33,20 +33,25 @@ class ExpAssignment:
         """
         self.element = element
         self.path = path
+        self.fpm_object = FilePathManager(self.element, None)
 
         self.fobject = FileInformationCollector(self.path)
+
         self.file_list = self._get_file_list()
         self.file_sizes = self._get_file_sizes()
         self.date = self._get_date_from_files()
         self.triggers_df = self._get_triggers()
 
         self.files_info = self.make_df()
+
         self.utc_time = self.get_UTC_time()
 
         self.assign_discharge_nr()
         self.camera_frequency = self.get_frequency()
-
+        print(self.camera_frequency)
+        print(self.camera_frequency)
         if savefile:
+            print("tak")
             self.save_file()
 
     def _get_file_list(self):
@@ -213,12 +218,8 @@ class ExpAssignment:
         self.files_info.astype({"discharge_nr": "int32"}, errors="ignore")
 
     def get_frequency(self):
-        setup_notes = (
-            pathlib.Path(__file__).parent.parent.resolve()
-            / "data"
-            / "exp_data_parameters"
-            / f"{self.element}-camera_setups.csv"
-        )
+        path = self.fpm_object.experimental_data_parameters()
+        setup_notes = path / f"{self.element}-camera_setups.csv"
         with open(setup_notes, "r") as data:
             df = pd.read_csv(
                 data, sep=",", usecols=["date", "discharge_nr", "ITTE_frequency"]
@@ -248,16 +249,9 @@ class ExpAssignment:
         self.files_info = self.files_info.astype({"frequency": "int32"})
 
     def save_file(self):
-        destination = (
-            pathlib.Path(__file__).parent.parent.resolve()
-            / "data"
-            / "discharge_numbers"
-            / f"{self.element}"
-        )
-        destination.mkdir(parents=True, exist_ok=True)
-        self.files_info.to_csv(
-            destination / f"{self.element}-{self.date}.csv", sep="\t"
-        )
+        path = self.fpm_object.discharge_nrs()
+        path.mkdir(parents=True, exist_ok=True)
+        self.files_info.to_csv(path / f"{self.element}-{self.date}.csv", sep="\t")
         print("Experimental details saved!")
 
 
@@ -277,9 +271,10 @@ if __name__ == "__main__":
     elements = ["C", "O"]
     for element in elements:
         list_of_directories = get_exp_data_subdirs(element)
-
+        # breakpoint()
         for directory in list_of_directories:
             try:
                 exp_ass = ExpAssignment(element, directory, savefile=True)
+                print(exp_ass)
             except ValueError:
                 continue

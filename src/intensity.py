@@ -38,7 +38,7 @@ class Intensity:
         self.discharge_nr = discharge_nr
         self.file_name = file_name
 
-        self.fpm_object = FilePathManager(self.element, self.date)
+        self.file_path_manager = FilePathManager(self.element, self.date)
         self.exp_info_df = DischargeDataExtractor(
             self.element, self.date, self.file_name
         ).discharge_data
@@ -220,7 +220,7 @@ class Intensity:
         df["time"] = x_labels
 
         def save_file():
-            path = self.fpm_object.time_evolutions()
+            path = self.file_path_manager.time_evolutions()
             path.mkdir(parents=True, exist_ok=True)
             df.to_csv(
                 path
@@ -265,7 +265,7 @@ class Intensity:
         plt.tight_layout()
 
         def save_fig():
-            path = self.fpm_object.images()
+            path = self.file_path_manager.images()
             path.mkdir(parents=True, exist_ok=True)
 
             plt.savefig(
@@ -279,3 +279,29 @@ class Intensity:
 
         plt.show()
         plt.close()
+
+
+if __name__ == "__main__":
+    dates_list = ["20230118"]
+    elements_list = ["C"]
+    discharges_list = [20]
+    time_interval = [-12, 5]  ### ponizej 5s czas time jest zly? 29h... TODO
+
+    for element in elements_list:
+        for date in dates_list:
+            for discharge in discharges_list:
+                try:
+                    f = DischargeFilesSelector(element, date, discharge)
+                    discharge_files = f.discharge_files
+                    for file_name in discharge_files:
+                        Intensity(
+                            element,
+                            date,
+                            discharge,
+                            file_name,
+                            time_interval,
+                            plotter=True,
+                        )
+                except FileNotFoundError:
+                    print("No matching file found! Continue...")
+                    continue
