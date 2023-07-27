@@ -28,6 +28,12 @@ class FilePathManager:
         path = self.stem_path / "exp_data" / self.element / self.date
         return path
 
+    def program_triggers(self):
+        path = (
+            pathlib.Path(__file__).parent.parent.resolve() / "data" / "program_triggers"
+        )
+        return path
+
     def time_evolutions(self):
         path = self.stem_path / "time_evolutions" / self.element / self.date
         return path
