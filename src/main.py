@@ -64,7 +64,7 @@ if __name__ == "__main__":
     dates_list = ["20230118"]
     elements_list = ["C"]
     discharges_list = [20]
-    time_interval = [-12, 5]  ### ponizej 5s czas time jest zly? 29h... TODO
+    time_interval = [-12, 500]  ### ponizej 5s czas time jest zly? 29h... TODO
 
     for element in elements_list:
         for date in dates_list:
