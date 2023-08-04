@@ -96,8 +96,9 @@ class FileListExtractor:
 
     def select_file_names(self):
         """Returns list of files that mathes the given date and discharge number."""
-
-        df = pd.read_csv(self.discharge_nr_file_path, sep="\t")
+        df = pd.read_csv(
+            self.discharge_nr_file_path / f"{self.element}-{self.date}.csv", sep="\t"
+        )
         if self.discharge_nr != 0:
             df["discharge_nr"] = df["discharge_nr"].replace("-", "0").astype(int)
             selected_file_names = df.loc[df["discharge_nr"] == self.discharge_nr][
@@ -112,18 +113,7 @@ class BackgroundFilesSelector(FileListExtractor):
 
     def __init__(self, element, date, discharge_nr):
         super().__init__(element, date, discharge_nr)
-        self.bgr_files = self.grab_bgr_files(discharge_nr)
-
-    def select_file_names(self, discharge_nr):
-        """Returns list of files that mathes the given date and discharge number."""
-
-        df = pd.read_csv(self.discharge_nr_file_path, sep="\t")
-        if self.discharge_nr != 0:
-            df["discharge_nr"] = df["discharge_nr"].replace("-", "0").astype(int)
-            selected_file_names = df.loc[df["discharge_nr"] == self.discharge_nr][
-                "file_name"
-            ].to_list()
-            return selected_file_names
+        self.bgr_files = self.grab_bgr_files()
 
     def grab_all_file_list(self):
         return list(self.exp_data_file_path.glob("**/*"))
@@ -168,7 +158,9 @@ class DischargeDataExtractor:
         return FilePathManager(self.element, self.date).discharge_nrs()
 
     def get_discharge_parameters(self):
-        with open(self.discharge_nr_file_path, "r") as data:
+        with open(
+            self.discharge_nr_file_path / f"{self.element}-{self.date}.csv", "r"
+        ) as data:
             df = pd.read_csv(
                 data,
                 sep="\t",

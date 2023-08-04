@@ -35,8 +35,10 @@ if __name__ == "__main__":
         for date in dates_list:
             for discharge in discharges_list:
                 try:
+                    # breakpoint()
                     f = DischargeFilesSelector(element, date, discharge)
                     discharge_files = f.discharge_files
+
                     for file_name in discharge_files:
                         Intensity(
                             element,
