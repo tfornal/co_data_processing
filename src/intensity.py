@@ -270,7 +270,7 @@ class Intensity:
 
             plt.savefig(
                 path
-                / f"QSO_{self.element}_{self.date}.{self.discharge_nr:03}-{self.file_name.stem}-time_{min(self.time_interval)}_{max(self.time_interval)}s.png",
+                / f"QSO_{self.element}_{self.date}.{self.discharge_nr:03}-{self.file_name.stem}.png",
                 dpi=200,
             )
 
@@ -279,29 +279,3 @@ class Intensity:
 
         plt.show()
         plt.close()
-
-
-if __name__ == "__main__":
-    dates_list = ["20230118"]
-    elements_list = ["C"]
-    discharges_list = [20]
-    time_interval = [-12, 5]  ### ponizej 5s czas time jest zly? 29h... TODO
-
-    for element in elements_list:
-        for date in dates_list:
-            for discharge in discharges_list:
-                try:
-                    f = DischargeFilesSelector(element, date, discharge)
-                    discharge_files = f.discharge_files
-                    for file_name in discharge_files:
-                        Intensity(
-                            element,
-                            date,
-                            discharge,
-                            file_name,
-                            time_interval,
-                            plotter=True,
-                        )
-                except FileNotFoundError:
-                    print("No matching file found! Continue...")
-                    continue
