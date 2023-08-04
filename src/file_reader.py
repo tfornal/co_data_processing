@@ -151,10 +151,10 @@ class DischargeDataExtractor:
         self.element = element
         self.date = date
         self.file_name = file_name
-        self.discharge_nr_file_path = self._get_specific_file_path()
+        self.discharge_nr_file_path = self.get_specific_file_path()
         self.discharge_data = self.get_discharge_parameters()
 
-    def _get_specific_file_path(self):
+    def get_specific_file_path(self):
         return FilePathManager(self.element, self.date).discharge_nrs()
 
     def get_discharge_parameters(self):
