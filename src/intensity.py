@@ -224,7 +224,7 @@ class Intensity:
             path.mkdir(parents=True, exist_ok=True)
             df.to_csv(
                 path
-                / f"QSO_{self.element}_{self.date}.{self.discharge_nr:03}-{file_name.stem}-time_{min(self.time_interval )}_{max(self.time_interval )}s.csv",
+                / f"QSO_{self.element}_{self.date}.{self.discharge_nr:03}-{self.file_name.stem}.csv",
                 sep="\t",
                 index=False,
                 header=True,
