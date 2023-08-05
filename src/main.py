@@ -1,13 +1,13 @@
 from datetime import datetime, timedelta
 import time
 
-from intensity import Intensity
 from file_reader import (
     FilePathManager,
     DischargeFilesSelector,
     DischargeDataExtractor,
     BackgroundFilesSelector,
 )
+from intensity import Intensity
 
 
 def generate_dates_list(start_date_str, end_date_str):
@@ -35,7 +35,6 @@ if __name__ == "__main__":
         for date in dates_list:
             for discharge in discharges_list:
                 try:
-                    # breakpoint()
                     f = DischargeFilesSelector(element, date, discharge)
                     discharge_files = f.discharge_files
 
