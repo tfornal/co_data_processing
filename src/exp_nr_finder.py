@@ -41,15 +41,12 @@ class ExpAssignment:
         self.file_sizes = self._get_file_sizes()
         self.date = self._get_date_from_files()
         self.triggers_df = self._get_triggers()
-
         self.files_info = self.make_df()
-
         self.utc_time = self.get_UTC_time()
-
+        breakpoint()
         self.assign_discharge_nr()
         self.camera_frequency = self.get_frequency()
-        print(self.camera_frequency)
-        print(self.camera_frequency)
+
         if savefile:
             print("tak")
             self.save_file()
@@ -97,6 +94,7 @@ class ExpAssignment:
         df.columns = ["date", "time", "miliseconds", "type_of_data", "file_size"]
         df = df.astype({"file_size": int})
         df.insert(loc=0, column="file_name", value=self.file_list)
+        breakpoint()
         return df
 
     def _convert_human_to_UTC_ns(self, date: str, time: str, miliseconds: str) -> int:

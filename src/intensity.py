@@ -79,7 +79,8 @@ class Intensity:
         ef = BackgroundFilesSelector(self.element, self.date, self.discharge_nr)
         return ef.bgr_files
 
-    def check_if_negative(self, numbers_list):
+    @classmethod
+    def check_if_negative(cls, numbers_list):
         numbers_list = [num if num >= 0 else 0 for num in numbers_list]
         return numbers_list
 
@@ -128,7 +129,8 @@ class Intensity:
         nrows = int.from_bytes(bites, "little")
         return nrows, ncols
 
-    def validate_time_duration(self):
+    @classmethod
+    def validate_time_duration(cls):
         ### TODO
         pass
 
