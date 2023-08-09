@@ -82,19 +82,13 @@ class ExpAssignment:
     def make_df(self):
         splitted_fnames = self.retrieve_file_info()
         df = pd.DataFrame(splitted_fnames)
-        # if len(df.columns) == 4:
-        #     df.drop(df.columns[-2], axis=1, inplace=True)
         if len(df.columns) == 3:
-            # df.drop(df.columns[-1], axis=1, inplace=True)
             df["type_of_data"] = "spectrum"
-        # breakpoint()
         df = df.fillna("spectrum")
         df["file_size"] = self.file_sizes
-        # df.columns = ["date", "time", "type_of_data", "file_size"]
         df.columns = ["date", "time", "miliseconds", "type_of_data", "file_size"]
         df = df.astype({"file_size": int})
         df.insert(loc=0, column="file_name", value=self.file_list)
-        breakpoint()
         return df
 
     def _convert_human_to_UTC_ns(self, date: str, time: str, miliseconds: str) -> int:
@@ -269,7 +263,6 @@ if __name__ == "__main__":
     elements = ["C", "O"]
     for element in elements:
         list_of_directories = get_exp_data_subdirs(element)
-        # breakpoint()
         for directory in list_of_directories:
             try:
                 exp_ass = ExpAssignment(element, directory, savefile=True)
