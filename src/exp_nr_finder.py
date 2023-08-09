@@ -43,10 +43,9 @@ class ExpAssignment:
         self.triggers_df = self._get_triggers()
         self.files_info = self.make_df()
         self.utc_time = self.get_UTC_time()
-        breakpoint()
         self.assign_discharge_nr()
         self.camera_frequency = self.get_frequency()
-
+        print(self.file_list)
         if savefile:
             print("tak")
             self.save_file()
@@ -62,7 +61,6 @@ class ExpAssignment:
 
     def _get_triggers(self):
         t = Triggers(self.date)
-        # breakpoint()
         return t.triggers_df
 
     def retrieve_file_info(self):
@@ -264,8 +262,12 @@ if __name__ == "__main__":
     for element in elements:
         list_of_directories = get_exp_data_subdirs(element)
         for directory in list_of_directories:
-            try:
-                exp_ass = ExpAssignment(element, directory, savefile=True)
-                print(exp_ass)
-            except ValueError:
-                continue
+            print(element, directory)
+            ### nie wywoluje poprawnie klasy exp assignment - TODO
+
+            # exp_ass = ExpAssignment(element, directory, savefile=True)
+
+            # try:
+            #     exp_ass = ExpAssignment(element, directory, savefile=True)
+            # except ValueError:
+            #     continue
