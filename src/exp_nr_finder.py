@@ -42,10 +42,12 @@ class ExpAssignment:
         self.date = self._get_date_from_files()
         self.triggers_df = self._get_triggers()
         self.files_info = self.make_df()
+
         self.utc_time = self.get_UTC_time()
+
         self.assign_discharge_nr()
+        ## wadliwa funkcja ponizej? - nie mozna wykonac - nie mozna stworzyc obiektu;
         self.camera_frequency = self.get_frequency()
-        print(self.file_list)
         if savefile:
             print("tak")
             self.save_file()
@@ -262,12 +264,13 @@ if __name__ == "__main__":
     for element in elements:
         list_of_directories = get_exp_data_subdirs(element)
         for directory in list_of_directories:
-            print(element, directory)
+            # print(element, directory)
             ### nie wywoluje poprawnie klasy exp assignment - TODO
 
-            # exp_ass = ExpAssignment(element, directory, savefile=True)
+            exp_ass = ExpAssignment(element, directory, savefile=True)
 
             # try:
             #     exp_ass = ExpAssignment(element, directory, savefile=True)
             # except ValueError:
+            #     print("Cannot run class (or sth else) - continuing.")
             #     continue
