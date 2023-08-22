@@ -42,7 +42,6 @@ class ExpAssignment:
         self.date = self._get_date_from_files()
         self.triggers_df = self._get_triggers()
         self.files_info = self.make_df()
-
         self.utc_time = self.get_UTC_time()
 
         self.assign_discharge_nr()
@@ -217,7 +216,6 @@ class ExpAssignment:
                 data, sep=",", usecols=["date", "discharge_nr", "ITTE_frequency"]
             )
             df = df.astype({"date": int})
-
         # Indeksowanie DataFrame po kolumnach "date" oraz "discharge_nr" w celu
         # szybkiego wyszukiwania po indexach / kombinacjach wartosci w 2 kolumnach
         df = df.set_index(["date", "discharge_nr"])
@@ -232,12 +230,14 @@ class ExpAssignment:
                 & (df.index.get_level_values("discharge_nr") == discharge_nr),
                 "ITTE_frequency",
             ]
-
+            breakpoint()
             if not filtered_df.empty:
                 wartosc = filtered_df.iloc[0]
                 self.files_info.at[index, "frequency"] = int(wartosc)
+
             else:
                 self.files_info.at[index, "frequency"] = int(200)
+
         self.files_info = self.files_info.astype({"frequency": "int32"})
 
     def save_file(self):
@@ -267,10 +267,10 @@ if __name__ == "__main__":
             # print(element, directory)
             ### nie wywoluje poprawnie klasy exp assignment - TODO
 
-            exp_ass = ExpAssignment(element, directory, savefile=True)
+            # exp_ass = ExpAssignment(element, directory, savefile=True)
 
-            # try:
-            #     exp_ass = ExpAssignment(element, directory, savefile=True)
-            # except ValueError:
-            #     print("Cannot run class (or sth else) - continuing.")
-            #     continue
+            try:
+                exp_ass = ExpAssignment(element, directory, savefile=True)
+            except ValueError:
+                print("Cannot run class (or sth else) - continuing.")
+                continue
