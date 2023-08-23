@@ -3,12 +3,13 @@ The code must contain only the data folder containing the corresponding folders
 in "YYMMDD" format. Subsequent sub-folders (with their names in YYMMDD format) 
 must contain the data recorded by the C/O monitor system (in *.dat format) .
 """
-
+import calendar
 import pathlib
 from dateutil import tz
 from datetime import datetime
+
+import natsort
 import numpy as np
-import calendar
 import pandas as pd
 
 from file_reader import FileInformationCollector, FilePathManager
@@ -45,8 +46,10 @@ class ExpAssignment:
         self.utc_time = self.get_UTC_time()
 
         self.assign_discharge_nr()
+        breakpoint()
         ## wadliwa funkcja ponizej? - nie mozna wykonac - nie mozna stworzyc obiektu;
         self.camera_frequency = self.get_frequency()
+        breakpoint()
         if savefile:
             print("tak")
             self.save_file()
@@ -256,13 +259,15 @@ def get_exp_data_subdirs(element):
     )
     sub_dirs = [f for f in path.iterdir() if f.is_dir() and f.name[0] != (".")]
 
-    return sub_dirs
+    return natsort.os_sorted(sub_dirs)
 
 
 if __name__ == "__main__":
-    elements = ["C", "O"]
+    elements = ["C"]
     for element in elements:
         list_of_directories = get_exp_data_subdirs(element)
+
+        breakpoint()
         for directory in list_of_directories:
             # print(element, directory)
             ### nie wywoluje poprawnie klasy exp assignment - TODO
