@@ -237,18 +237,22 @@ class ExpAssignment:
         # Zastosowanie funkcji do kolumny
         df["date"] = df["date"].apply(change_dates_format)
 
-        # Indeksowanie DataFrame po kolumnach "date" oraz "discharge_nr" w celu
-        # szybkiego wyszukiwania po indexach / kombinacjach wartosci w 2 kolumnach
+        # both dataframes indexed by "date" and "discharge_nr" columns
         df = df.set_index(["date", "discharge_nr"])
         self.files_info = self.files_info.set_index(["date", "discharge_nr"])
-        
+
+        # merge both dataframes by indexed columns
         merged_df = self.files_info.merge(
             df, left_index=True, right_index=True, how="left"
         )
         merged_df["frequency"] = merged_df["ITTE_frequency"]
         merged_df.drop("ITTE_frequency", axis=1, inplace=True)
+
+        # fill NaN if no values mathes
         merged_df["frequency"].fillna(200, inplace=True)
+        # sort all columns by file_name column
         self.files_info = merged_df.sort_values(by="file_name")
+
         self.files_info["frequency"] = self.files_info["frequency"].astype(int)
 
     def save_file(self):
@@ -276,11 +280,6 @@ if __name__ == "__main__":
         list_of_directories = get_exp_data_subdirs(element)
 
         for directory in list_of_directories:
-            # print(element, directory)
-            ### nie wywoluje poprawnie klasy exp assignment - TODO
-
-            # exp_ass = ExpAssignment(element, directory, savefile=True)
-
             try:
                 exp_ass = ExpAssignment(element, directory, savefile=True)
             except ValueError:
