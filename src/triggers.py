@@ -110,6 +110,7 @@ class Triggers:
                 start_ecrh = api_response.json()["programs"][shot]["trigger"]["1"][0]
                 triggers["T1"].append(start_ecrh)
             except (IndexError, TypeError):
+                ## TODO - wyprintowac komentarz
                 if start_program == 0:
                     start_ecrh = 0
                     triggers["T1"].append(start_ecrh)

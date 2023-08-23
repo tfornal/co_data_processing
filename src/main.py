@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 import time
-
 from file_reader import (
     FilePathManager,
     DischargeFilesSelector,
@@ -8,6 +7,7 @@ from file_reader import (
     BackgroundFilesSelector,
 )
 from intensity import Intensity
+import numpy as np
 
 
 def generate_dates_list(start_date_str, end_date_str):
@@ -25,12 +25,13 @@ def generate_dates_list(start_date_str, end_date_str):
     return dates_list
 
 
-if __name__ == "__main__":
-    dates_list = ["20230118"]
-    elements_list = ["C"]
-    discharges_list = [20]
-    time_interval = [-12, 500]  ### ponizej 5s czas time jest zly? 29h... TODO
+# dates_list = generate_dates_list("20230117", "20230331")
 
+if __name__ == "__main__":
+    dates_list = ["20230331"]
+    elements_list = ["C"]
+    discharges_list = [49]
+    time_interval = [-12, 500]  ### ponizej 5s czas time jest zly? 29h... TODO
     for element in elements_list:
         for date in dates_list:
             for discharge in discharges_list:
