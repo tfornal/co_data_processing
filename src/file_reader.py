@@ -1,5 +1,6 @@
 import pathlib
 import pandas as pd
+import natsort
 
 
 class FilePathManager:
@@ -61,7 +62,7 @@ class FileInformationCollector:
         directory = self.path.glob("**/*")
         file_list = [x.stem for x in directory if x.is_file()]
 
-        return file_list
+        return natsort.os_sorted(file_list)
 
     def get_file_sizes(self):
         """
