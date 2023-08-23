@@ -35,7 +35,6 @@ class ExpAssignment:
         self.element = element
         self.path = path
         self.fpm_object = FilePathManager(self.element, None)
-
         self.fobject = FileInformationCollector(self.path)
 
         self.file_list = self._get_file_list()
@@ -45,11 +44,9 @@ class ExpAssignment:
         self.files_info = self.make_df()
         self.utc_time = self.get_UTC_time()
 
-        self.assign_discharge_nr()
-        breakpoint()
+        self.files_into = self.assign_discharge_nr()
         ## wadliwa funkcja ponizej? - nie mozna wykonac - nie mozna stworzyc obiektu;
-        self.camera_frequency = self.get_frequency()
-        breakpoint()
+        self.get_frequency()
         if savefile:
             print("tak")
             self.save_file()
@@ -203,13 +200,17 @@ class ExpAssignment:
                 except KeyError:
                     dic[idx_df_total] = row_triggers["discharge_nr"]
 
+        files_info_assigned_discharges = self.files_info
         try:
-            self.files_info["discharge_nr"].loc[
+            files_info_assigned_discharges["discharge_nr"].loc[
                 np.array([i for i in dic.keys()])
             ] = np.array([i for i in dic.values()])
         except ValueError:
             print(f"\n{self.date} - no discharges registered during the day!\n")
-        self.files_info.astype({"discharge_nr": "int32"}, errors="ignore")
+        files_info_assigned_discharges.astype(
+            {"discharge_nr": "int32"}, errors="ignore"
+        )
+        return files_info_assigned_discharges
 
     def get_frequency(self):
         path = self.fpm_object.experimental_data_parameters()
@@ -219,29 +220,36 @@ class ExpAssignment:
                 data, sep=",", usecols=["date", "discharge_nr", "ITTE_frequency"]
             )
             df = df.astype({"date": int})
+
+        def change_dates_format(date_integer):
+            date_string = str(date_integer)
+            if len(date_string) == 8:
+                new_date_string = date_string[
+                    2:
+                ]  # Zmiana formatu z "YYYYMMDD" na "YYMMDD"
+                new_date_integer = str(
+                    new_date_string
+                )  # Konwersja z powrotem na integer
+                return new_date_integer
+            else:
+                return date_integer
+
+        # Zastosowanie funkcji do kolumny
+        df["date"] = df["date"].apply(change_dates_format)
+
         # Indeksowanie DataFrame po kolumnach "date" oraz "discharge_nr" w celu
         # szybkiego wyszukiwania po indexach / kombinacjach wartosci w 2 kolumnach
         df = df.set_index(["date", "discharge_nr"])
         self.files_info = self.files_info.set_index(["date", "discharge_nr"])
-        for index in self.files_info.index:
-            date_value = index[0]  # Pobranie wartości z indeksu dla poziomu "date"
-            discharge_nr = index[
-                1
-            ]  # Pobranie wartości z indeksu dla poziomu "discharge_nr"
-            filtered_df = df.loc[
-                (df.index.get_level_values("date") == int(f"20{date_value}"))
-                & (df.index.get_level_values("discharge_nr") == discharge_nr),
-                "ITTE_frequency",
-            ]
-            breakpoint()
-            if not filtered_df.empty:
-                wartosc = filtered_df.iloc[0]
-                self.files_info.at[index, "frequency"] = int(wartosc)
-
-            else:
-                self.files_info.at[index, "frequency"] = int(200)
-
-        self.files_info = self.files_info.astype({"frequency": "int32"})
+        
+        merged_df = self.files_info.merge(
+            df, left_index=True, right_index=True, how="left"
+        )
+        merged_df["frequency"] = merged_df["ITTE_frequency"]
+        merged_df.drop("ITTE_frequency", axis=1, inplace=True)
+        merged_df["frequency"].fillna(200, inplace=True)
+        self.files_info = merged_df.sort_values(by="file_name")
+        self.files_info["frequency"] = self.files_info["frequency"].astype(int)
 
     def save_file(self):
         path = self.fpm_object.discharge_nrs()
@@ -267,7 +275,6 @@ if __name__ == "__main__":
     for element in elements:
         list_of_directories = get_exp_data_subdirs(element)
 
-        breakpoint()
         for directory in list_of_directories:
             # print(element, directory)
             ### nie wywoluje poprawnie klasy exp assignment - TODO
