@@ -144,7 +144,8 @@ class DischargeFilesSelector(FileListExtractor):
             and x.stem in self.selected_file_names
             and "BGR" not in x.stem
         ]
-        return discharge_files
+
+        return natsort.os_sorted(discharge_files)
 
 
 class DischargeDataExtractor:
