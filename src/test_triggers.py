@@ -4,20 +4,22 @@ from file_reader import FilePathManager
 
 
 @pytest.fixture
-def get_test_files():
+def get_test_files_paths():
     path_manager = FilePathManager()
     path = path_manager.program_triggers()
-
-    return [file.name for file in path.glob("*_triggers.csv")]
-
-
-def test_if_not_empty(get_test_files):
-    assert len(get_test_files) > 0, "No files in a given direcory."
+    files = [file.name for file in path.glob("*_triggers.csv")]
+    # for file in files:
+    # path = FilePathManager(None, file).program_triggers() / file
+    return [FilePathManager(None, file).program_triggers() / file for file in files]
 
 
-def test_trigger_columns(get_test_files):
-    for file in get_test_files:
-        path = FilePathManager(None, file).program_triggers() / file
+def test_if_not_empty(get_test_files_paths):
+    assert len(get_test_files_paths) > 0, "No files in a given direcory."
+
+
+def test_trigger_columns(get_test_files_paths):
+    for path in get_test_files_paths:
+        # path = FilePathManager(None, file).program_triggers() / file
         df = pd.read_csv(path, sep="\t")
         T0 = df["T0"]
         T1 = df["T1"]
@@ -26,9 +28,9 @@ def test_trigger_columns(get_test_files):
         assert (T1 >= 0).all()
 
 
-def test_sequent_rows(get_test_files):
-    for file in get_test_files:
-        path = FilePathManager(None, file).program_triggers() / file
+def test_sequent_rows(get_test_files_paths):
+    for path in get_test_files_paths:
+        # path = FilePathManager(None, file).program_triggers() / file
         df = pd.read_csv(path, sep="\t")
         array = df.to_numpy()[:, 2:]
         for i, arr_line in enumerate(array):
