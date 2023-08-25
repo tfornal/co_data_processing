@@ -7,7 +7,7 @@ class FilePathManager:
     """Retrieves paths to different folders containing input/output files relative
     to source code."""
 
-    def __init__(self, element, date):
+    def __init__(self, element=None, date=None):
         self.element = element
         self.date = date
         self.stem_path = self.main_path()
@@ -62,7 +62,7 @@ class FileInformationCollector:
         directory = self.path.glob("**/*")
         file_list = [x.stem for x in directory if x.is_file()]
 
-        return natsort.os_sorted(file_list)
+        return file_list
 
     def get_file_sizes(self):
         """
@@ -144,8 +144,7 @@ class DischargeFilesSelector(FileListExtractor):
             and x.stem in self.selected_file_names
             and "BGR" not in x.stem
         ]
-
-        return natsort.os_sorted(discharge_files)
+        return discharge_files
 
 
 class DischargeDataExtractor:
