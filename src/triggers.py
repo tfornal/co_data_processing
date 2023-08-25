@@ -125,9 +125,8 @@ class Triggers:
                 ]
                 triggers["T6"].append(end_of_program)
             except (IndexError, TypeError):
-                end_of_program = 0
+                end_of_program = start_program + 61_000_000_000
                 triggers["T6"].append(end_of_program)
-
         return triggers
 
     def _create_df(self):
