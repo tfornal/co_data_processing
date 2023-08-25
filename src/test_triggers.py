@@ -7,7 +7,12 @@ from file_reader import FilePathManager
 def get_test_files():
     path_manager = FilePathManager()
     path = path_manager.program_triggers()
-    return [file.name for file in path.glob("*.csv")]
+
+    return [file.name for file in path.glob("*_triggers.csv")]
+
+
+def test_if_not_empty(get_test_files):
+    assert len(get_test_files) > 0, "No files in a given direcory."
 
 
 def test_trigger_columns(get_test_files):
@@ -30,4 +35,5 @@ def test_sequent_rows(get_test_files):
             if i == 0:
                 continue
             x = arr_line - array[i - 1]
+            print(x)
             assert x.all() >= 0
