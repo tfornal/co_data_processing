@@ -25,12 +25,11 @@ def generate_dates_list(start_date_str, end_date_str):
     return dates_list
 
 
-# dates_list = generate_dates_list("20230117", "20230331")
-
 if __name__ == "__main__":
-    dates_list = ["20230331"]
-    elements_list = ["C"]
-    discharges_list = [49]
+    dates_list = generate_dates_list("20230101", "20230331")
+    elements_list = ["C", "O"]
+    discharges_list = [i for i in range(1, 100)]
+
     time_interval = [-12, 500]  ### ponizej 5s czas time jest zly? 29h... TODO
     for element in elements_list:
         for date in dates_list:
@@ -38,7 +37,6 @@ if __name__ == "__main__":
                 try:
                     f = DischargeFilesSelector(element, date, discharge)
                     discharge_files = f.discharge_files
-
                     for file_name in discharge_files:
                         Intensity(
                             element,
@@ -49,5 +47,7 @@ if __name__ == "__main__":
                             plotter=True,
                         )
                 except FileNotFoundError:
-                    print("No matching file found! Continue...")
+                    print(
+                        f"{element}_{date}_{discharge} - No matching file found! Continue..."
+                    )
                     continue
