@@ -4,7 +4,7 @@ from file_reader import FilePathManager
 
 
 @pytest.fixture
-def get_test_files_paths():
+def get_trigger_files_paths():
     path_manager = FilePathManager()
     path = path_manager.program_triggers()
     files = [file.name for file in path.glob("*_triggers.csv")]
@@ -12,12 +12,12 @@ def get_test_files_paths():
     return [FilePathManager(None, file).program_triggers() / file for file in files]
 
 
-def test_if_not_empty(get_test_files_paths):
-    assert len(get_test_files_paths) > 0, "No files in a given direcory."
+def test_if_directory_not_empty(get_trigger_files_paths):
+    assert len(get_trigger_files_paths) > 0, "No files in a given direcory."
 
 
-def test_trigger_columns(get_test_files_paths):
-    for path in get_test_files_paths:
+def test_trigger_columns_in_files(get_trigger_files_paths):
+    for path in get_trigger_files_paths:
         df = pd.read_csv(path, sep="\t")
         T0 = df["T0"]
         T1 = df["T1"]
@@ -27,8 +27,8 @@ def test_trigger_columns(get_test_files_paths):
         assert (T1 >= 0).all()
 
 
-def test_sequent_rows(get_test_files_paths):
-    for path in get_test_files_paths:
+def test_sequent_rows_in_files(get_trigger_files_paths):
+    for path in get_trigger_files_paths:
         df = pd.read_csv(path, sep="\t")
         array = df.to_numpy()[:, 2:]
         for i, arr_line in enumerate(array):
@@ -40,3 +40,4 @@ def test_sequent_rows(get_test_files_paths):
 
 
 ## napisac funkcje, ktora nie przejdzie testow - fakeowy csv
+### napisac testy do
