@@ -45,10 +45,8 @@ class ExpAssignment:
         self.utc_time = self.get_UTC_time()
 
         self.files_into = self.assign_discharge_nr()
-        ## wadliwa funkcja ponizej? - nie mozna wykonac - nie mozna stworzyc obiektu;
         self.get_frequency()
         if savefile:
-            print("tak")
             self.save_file()
 
     def _get_file_list(self):
@@ -224,17 +222,12 @@ class ExpAssignment:
         def change_dates_format(date_integer):
             date_string = str(date_integer)
             if len(date_string) == 8:
-                new_date_string = date_string[
-                    2:
-                ]  # Zmiana formatu z "YYYYMMDD" na "YYMMDD"
-                new_date_integer = str(
-                    new_date_string
-                )  # Konwersja z powrotem na integer
+                new_date_string = date_string[2:]
+                new_date_integer = str(new_date_string)
                 return new_date_integer
             else:
                 return date_integer
 
-        # Zastosowanie funkcji do kolumny
         df["date"] = df["date"].apply(change_dates_format)
 
         # both dataframes indexed by "date" and "discharge_nr" columns
@@ -248,18 +241,17 @@ class ExpAssignment:
         merged_df["frequency"] = merged_df["ITTE_frequency"]
         merged_df.drop("ITTE_frequency", axis=1, inplace=True)
 
-        # fill NaN if no values mathes
         merged_df["frequency"].fillna(200, inplace=True)
-        # sort all columns by file_name column
-        self.files_info = merged_df.sort_values(by="file_name")
 
+        self.files_info = merged_df.sort_values(by="file_name")
         self.files_info["frequency"] = self.files_info["frequency"].astype(int)
 
     def save_file(self):
         path = self.fpm_object.discharge_nrs()
         path.mkdir(parents=True, exist_ok=True)
         self.files_info.to_csv(path / f"{self.element}-{self.date}.csv", sep="\t")
-        print("Experimental details saved!")
+
+        print(f"{self.element}_{self.date} - Experimental details saved!")
 
 
 def get_exp_data_subdirs(element):
@@ -275,13 +267,12 @@ def get_exp_data_subdirs(element):
 
 
 if __name__ == "__main__":
-    elements = ["C"]
+    elements = ["C", "O"]
     for element in elements:
         list_of_directories = get_exp_data_subdirs(element)
-
         for directory in list_of_directories:
             try:
                 exp_ass = ExpAssignment(element, directory, savefile=True)
             except ValueError:
-                print("Cannot run class (or sth else) - continuing.")
+                print(f" {directory} - Cannot process the data - continuing.")
                 continue
