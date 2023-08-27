@@ -43,8 +43,14 @@ def plot_elements_comparison(bufor, date, discharge_nr, normalized, save_fig, pl
             ax1, ax2, df, element, date, discharge_nr, normalized, colors[idx]
         )
 
+    labels = [instance.element for instance in bufor]
+    legend = ax2.legend(labels)
+    for line in legend.get_lines():
+        line.set_linewidth(1.5)
+
     configure_axes(ax1, ax2)
     save_or_show_plot(bufor[0], date, discharge_nr, normalized, save_fig, plot)
+
     plt.close()
 
 
@@ -68,6 +74,8 @@ def plot_single_element(ax1, ax2, df, element, date, discharge_nr, normalized, c
         linewidth=0.4,
         color=color,
     )
+    labels = ["C", "O"]
+    ax2.legend(labels)  # Możesz dostosować położenie legendy
 
 
 def configure_axes(ax1, ax2):
@@ -111,9 +119,9 @@ def main():
     elements_list = ["C", "O"]
     discharges_list = [i for i in range(1, 100)]
 
-    # dates_list = ["20230125"]
-    # elements_list = ["C"]  # , "O"]
-    # discharges_list = [13, 14]
+    # dates_list = ["20230125", "20230117"]
+    # elements_list = ["C", "O"]  # , "O"]
+    # discharges_list = [13, 14, 15]
 
     for date in dates_list:
         for discharge in discharges_list:
@@ -145,7 +153,7 @@ def main():
             if len(bufor) >= 2:
                 parameters = (bufor, date, discharge)
                 plot_elements_comparison(
-                    *parameters, normalized=True, save_fig=True, plot=True
+                    *parameters, normalized=False, save_fig=True, plot=True
                 )
                 plot_elements_comparison(
                     *parameters, normalized=True, save_fig=True, plot=True
