@@ -29,49 +29,13 @@ def generate_dates_list(start_date_str, end_date_str):
     return dates_list
 
 
-# if __name__ == "__main__":
-#     dates_list = generate_dates_list("20230101", "20230331")
-#     elements_list = ["C", "O"]
-#     discharges_list = [i for i in range(1, 100)]
-
-#     dates_list = ["20230125"]
-#     elements_list = ["C"]  # , "O"]
-#     discharges_list = [14]
-
-#     time_interval = [0, 500]  ### ponizej 4.5-5s time interval  czas time jest zly? TODO
-#     for element in elements_list:
-#         for date in dates_list:
-#             for discharge in discharges_list:
-#                 try:
-#                     f = DischargeFilesSelector(element, date, discharge)
-#                     discharge_files = f.discharge_files
-#                     for file_name in discharge_files:
-#                         Intensity(
-#                             element,
-#                             date,
-#                             discharge,
-#                             file_name,
-#                             time_interval,
-#                             save_df=True,
-#                             save_fig=True,
-#                             plot=True,
-#                         )
-#                 except FileNotFoundError:
-#                     print(
-#                         f"{element}_{date}_{discharge} - No matching file found! Continue..."
-#                     )
-#                     continue
-
-
-### rysowanie C/O na jednym wykresie
-
 if __name__ == "__main__":
     dates_list = generate_dates_list("20230101", "20230331")
     elements_list = ["C", "O"]
     discharges_list = [i for i in range(1, 100)]
 
     dates_list = ["20230125"]
-    elements_list = ["C", "O"]
+    # elements_list = ["C"]  # , "O"]
     discharges_list = [14]
 
     time_interval = [0, 500]
@@ -94,9 +58,9 @@ if __name__ == "__main__":
                                 discharge,
                                 file_name,
                                 time_interval,
-                                save_df=False,
-                                save_fig=False,
-                                plot=False,
+                                save_df=True,
+                                save_fig=True,
+                                plot=True,
                             )
                         )
                 except FileNotFoundError:
@@ -160,22 +124,29 @@ if __name__ == "__main__":
             plt.tight_layout(rect=None)
 
         def save_plot():
-            path = (
-                instance.file_path_manager.images().parent.parent.parent
-                / "comparison"
-                / date
-            )
-            path.mkdir(parents=True, exist_ok=True)
             if normalized:
+                path = (
+                    instance.file_path_manager.images().parent.parent.parent
+                    / "_Comparison"
+                    / date
+                    / "normalized"
+                )
+                path.mkdir(parents=True, exist_ok=True)
+
                 plt.savefig(
-                    path
-                    / f"QSO_comparison_norm_{date}.{discharge_nr:03}-{file_name.stem}.png",
+                    path / f"QSO_comparison_norm_{date}.{discharge_nr:03}.png",
                     dpi=200,
                 )
             else:
+                path = (
+                    instance.file_path_manager.images().parent.parent.parent
+                    / "_Comparison"
+                    / date
+                    / "original"
+                )
+                path.mkdir(parents=True, exist_ok=True)
                 plt.savefig(
-                    path
-                    / f"QSO_comparison_{date}.{discharge_nr:03}-{file_name.stem}.png",
+                    path / f"QSO_comparison_{date}.{discharge_nr:03}.png",
                     dpi=200,
                 )
 
@@ -185,4 +156,6 @@ if __name__ == "__main__":
             plt.show()
         plt.close()
 
-    plot_all_elements(normalized=True, save_fig=True, plot=True)
+    if len(bufor) >= 2:
+        plot_all_elements(normalized=True, save_fig=True, plot=True)
+        plot_all_elements(normalized=False, save_fig=True, plot=True)
