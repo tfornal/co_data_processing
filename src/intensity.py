@@ -1,5 +1,5 @@
 from functools import wraps
-import pathlib
+
 import time
 
 import matplotlib.pyplot as plt
@@ -10,7 +10,6 @@ from scipy import integrate
 # from yaml import load, dump
 from file_reader import (
     FilePathManager,
-    DischargeFilesSelector,
     DischargeDataExtractor,
     BackgroundFilesSelector,
 )
@@ -52,6 +51,27 @@ class Intensity:
         self.dt = self.convert_frequency_to_dt()
         self.spectra = self.get_all_spectra()
         self.spectra_without_bgr, self.selected_time_stamps = self.calculate_intensity()
+
+        # data = self.spectra.to_numpy()[:, :-560].T
+        # # data = self.spectra_without_bgr.to_numpy()[:, :-560].T
+
+        # time = self.selected_time_stamps[::50]
+        # import matplotlib.pyplot as plt
+
+        # # Stworzenie colormapy
+        # plt.figure(figsize=(10, 8))
+        # plt.imshow(
+        #     data, cmap="jet", aspect="auto"
+        # )  # 'viridis' to przykładowa mapa kolorów
+        # plt.colorbar()  # Dodanie skali kolorów
+        # plt.xlabel("Piksele")
+
+        # plt.ylabel("Ramki czasowe")
+        # plt.yticks(np.arange(len(time)), time)
+        # plt.title("Colormap z macierzy danych")
+
+        # plt.show()
+        # breakpoint()
         self.utc_time_stamps = self.convert_to_utc_time_stamps(
             self.utc_time_of_saved_file, self.selected_time_stamps
         )
@@ -82,7 +102,7 @@ class Intensity:
     @classmethod
     def check_if_negative(cls, numbers_list):
         numbers_list = [num if num >= 0 else 0 for num in numbers_list]
-        return numbers_list
+        return sorted(numbers_list)
 
     def select_integral_range(self):
         ranges_dict = {"C": [120, 990], "O": [190, 941]}
@@ -179,7 +199,6 @@ class Intensity:
         ns_time_stamps = [int(i * self.dt * 1e9) for i in range(frames_nr)]
         ns_time_stamps.reverse()
         removed = [utc_time - i for i in ns_time_stamps]
-
         return removed
 
     def calculate_intensity(self):
@@ -200,7 +219,6 @@ class Intensity:
                 : spectra_without_bgr.shape[1]
             ]
             print("TODO BACKGROUND NOT REMOVED!!!!!!!!!!!!!!!!!!!!!!!!")
-
         return spectra_without_bgr, selected_time_stamps
 
     def make_df(self, save=True):
@@ -215,11 +233,14 @@ class Intensity:
         ### usuwa p[ierwsza ramke w czasie 0s -> w celu usuniecia niefizycznych wartosci
 
         time = list(map(get_time_from_UTC, df["utc_timestamps"]))
+
         x_labels = [
             date.strftime("%H:%M:%S.%f")[:-3] if date.microsecond % 1_000 == 0 else ""
             for date in time
         ]
+
         df["time"] = x_labels
+        print(df)
 
         def save_file():
             path = self.file_path_manager.time_evolutions()
@@ -250,6 +271,7 @@ class Intensity:
             self.df[f"QSO_{self.element}_{self.date}.{self.discharge_nr}"],
             alpha=0,
         )
+        ax1.xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter("%H:%M:%S"))
 
         ax2.plot(
             np.asarray(self.df["discharge_time"], float),
@@ -269,7 +291,6 @@ class Intensity:
         def save_fig():
             path = self.file_path_manager.images()
             path.mkdir(parents=True, exist_ok=True)
-
             plt.savefig(
                 path
                 / f"QSO_{self.element}_{self.date}.{self.discharge_nr:03}-{self.file_name.stem}.png",
@@ -278,6 +299,5 @@ class Intensity:
 
         if save:
             save_fig()
-
         plt.show()
         plt.close()
