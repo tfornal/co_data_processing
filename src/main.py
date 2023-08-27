@@ -34,9 +34,9 @@ if __name__ == "__main__":
     elements_list = ["C", "O"]
     discharges_list = [i for i in range(1, 100)]
 
-    dates_list = ["20230125"]
+    # dates_list = ["20230125"]
     # elements_list = ["C"]  # , "O"]
-    discharges_list = [14]
+    # discharges_list = [14]
 
     time_interval = [0, 500]
 
@@ -124,31 +124,19 @@ if __name__ == "__main__":
             plt.tight_layout(rect=None)
 
         def save_plot():
-            if normalized:
-                path = (
-                    instance.file_path_manager.images().parent.parent.parent
-                    / "_Comparison"
-                    / date
-                    / "normalized"
-                )
-                path.mkdir(parents=True, exist_ok=True)
+            image_type = "normalized" if normalized else "original"
 
-                plt.savefig(
-                    path / f"QSO_comparison_norm_{date}.{discharge_nr:03}.png",
-                    dpi=200,
-                )
-            else:
-                path = (
-                    instance.file_path_manager.images().parent.parent.parent
-                    / "_Comparison"
-                    / date
-                    / "original"
-                )
-                path.mkdir(parents=True, exist_ok=True)
-                plt.savefig(
-                    path / f"QSO_comparison_{date}.{discharge_nr:03}.png",
-                    dpi=200,
-                )
+            parent_path = instance.file_path_manager.images().parent.parent.parent
+            path = parent_path / "_Comparison" / date / image_type
+            path.mkdir(parents=True, exist_ok=True)
+
+            filename = (
+                f"QSO_comparison_norm_{date}.{discharge_nr:03}.png"
+                if normalized
+                else f"QSO_comparison_{date}.{discharge_nr:03}.png"
+            )
+
+            plt.savefig(path / filename, dpi=200)
 
         if save_fig:
             save_plot()
