@@ -2,6 +2,8 @@ from datetime import datetime, timedelta
 import time
 
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+
 import numpy as np
 import pandas as pd
 
@@ -33,14 +35,12 @@ def plot_elements_comparison(bufor, date, discharge_nr, normalized, save_fig, pl
     fig, ax1 = plt.subplots()
     ax2 = ax1.twiny()
 
-    colors = ["blue", "red"]
-
     for idx, instance in enumerate(bufor):
         element = instance.element
         df = instance.df
-
+        color = "blue" if element == "C" else "red"
         plot_single_element(
-            ax1, ax2, df, element, date, discharge_nr, normalized, colors[idx]
+            ax1, ax2, df, element, date, discharge_nr, normalized, color
         )
 
     labels = [instance.element for instance in bufor]
@@ -95,7 +95,7 @@ def save_or_show_plot(instance, date, discharge_nr, normalized, save_fig, plot):
 
     image_type = "normalized" if normalized else "original"
     parent_path = instance.file_path_manager.images().parent.parent.parent
-    path = parent_path / "_Comparison" / date / image_type
+    path = parent_path / "_comparison" / date / image_type
     path.mkdir(parents=True, exist_ok=True)
 
     filename = (
@@ -106,8 +106,9 @@ def save_or_show_plot(instance, date, discharge_nr, normalized, save_fig, plot):
 
     if save_fig:
         plt.savefig(path / filename, dpi=200)
-        print("Comparyy")
-
+        print(
+            f"QSO_comparison_{image_type}_{date}.{discharge_nr:03} - ntensity evolution saved!"
+        )
     if plot:
         plt.show()
 
@@ -119,10 +120,17 @@ def main():
     elements_list = ["C", "O"]
     discharges_list = [i for i in range(1, 100)]
 
-    # dates_list = ["20230125", "20230117"]
+    # dates_list = ["20230117"]
     # elements_list = ["C", "O"]  # , "O"]
-    # discharges_list = [13, 14, 15]
+    # discharges_list = [14]
+    """
+    Sprawdzic gdy wiele plików - np. w przypadku
+    dates_list = ["20230117"]
+    elements_list = ["C", "O"]  # , "O"]
+    discharges_list = [14]
 
+    wszystko wrzuca an jeden wykres - a moze rysowanie linii czasu?
+    """
     for date in dates_list:
         for discharge in discharges_list:
             bufor = []
@@ -141,7 +149,7 @@ def main():
                                 file_name,
                                 time_interval,
                                 save_df=True,
-                                save_fig=False,
+                                save_fig=True,
                                 plot=False,
                             )
                         )
@@ -153,10 +161,10 @@ def main():
             if len(bufor) >= 2:
                 parameters = (bufor, date, discharge)
                 plot_elements_comparison(
-                    *parameters, normalized=False, save_fig=True, plot=True
+                    *parameters, normalized=False, save_fig=True, plot=False
                 )
                 plot_elements_comparison(
-                    *parameters, normalized=True, save_fig=True, plot=True
+                    *parameters, normalized=True, save_fig=True, plot=False
                 )
 
 
