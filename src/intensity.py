@@ -30,7 +30,15 @@ def timer(function):
 
 class Intensity:
     def __init__(
-        self, element, date, discharge_nr, file_name, time_interval, plotter=True
+        self,
+        element,
+        date,
+        discharge_nr,
+        file_name,
+        time_interval,
+        save_df=True,
+        save_fig=True,
+        plot=False,
     ):
         self.element = element
         self.date = date
@@ -71,14 +79,12 @@ class Intensity:
         # plt.title("Colormap z macierzy danych")
 
         # plt.show()
-        # breakpoint()
         self.utc_time_stamps = self.convert_to_utc_time_stamps(
             self.utc_time_of_saved_file, self.selected_time_stamps
         )
         self.intensity = self.get_intensity()
-        self.df = self.make_df(save=True)
-        if plotter:
-            self.plot_results(save=True)
+        self.df = self.make_df(save_df)
+        self.plot(plot, save_fig)
 
     def get_intensity(self):
         intensity = [
@@ -221,7 +227,7 @@ class Intensity:
             print("TODO BACKGROUND NOT REMOVED!!!!!!!!!!!!!!!!!!!!!!!!")
         return spectra_without_bgr, selected_time_stamps
 
-    def make_df(self, save=True):
+    def make_df(self, save_df=True):
         df = pd.DataFrame()
         df["discharge_time"] = self.selected_time_stamps
         df[f"QSO_{self.element}_{self.date}.{self.discharge_nr}"] = self.intensity
@@ -240,9 +246,8 @@ class Intensity:
         ]
 
         df["time"] = x_labels
-        print(df)
 
-        def save_file():
+        def save():
             path = self.file_path_manager.time_evolutions()
             path.mkdir(parents=True, exist_ok=True)
             df.to_csv(
@@ -256,23 +261,21 @@ class Intensity:
                 f"QSO_{self.element}_{self.date}.{self.discharge_nr:03} - intensity evolution saved!"
             )
 
-        if save:
-            save_file()
+        if save_df:
+            save()
         return df
 
-    def plot_results(self, save=True):
+    def plot(self, plot, save_fig):
         fig, ax1 = plt.subplots()
+        ax2 = ax1.twiny()
         ax1.set_title(
             f"{self.element} Lyman-alpha - intensity evolution\n {self.date}.{self.discharge_nr:03}"
         )
-        ax2 = ax1.twiny()
         ax1.plot(
             pd.to_datetime(self.df["time"], format="%H:%M:%S.%f", errors="coerce"),
             self.df[f"QSO_{self.element}_{self.date}.{self.discharge_nr}"],
             alpha=0,
         )
-        ax1.xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter("%H:%M:%S"))
-
         ax2.plot(
             np.asarray(self.df["discharge_time"], float),
             self.df[f"QSO_{self.element}_{self.date}.{self.discharge_nr}"],
@@ -280,6 +283,7 @@ class Intensity:
             label="discharge_time",
             linewidth=0.4,
         )
+        ax1.xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter("%H:%M:%S"))
         ax1.tick_params(axis="x", rotation=45)
         ax1.ticklabel_format(style="sci", axis="y", scilimits=(0, 0))
         ax1.set_ylabel("Intensity [a.u.]")
@@ -288,7 +292,7 @@ class Intensity:
         ax1.grid(which="major")
         plt.tight_layout()
 
-        def save_fig():
+        def save_plot():
             path = self.file_path_manager.images()
             path.mkdir(parents=True, exist_ok=True)
             plt.savefig(
@@ -297,7 +301,9 @@ class Intensity:
                 dpi=200,
             )
 
-        if save:
-            save_fig()
-        plt.show()
+        if save_fig:
+            save_plot()
+        if plot:
+            plt.show()
+
         plt.close()
