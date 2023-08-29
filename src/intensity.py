@@ -146,6 +146,7 @@ class Intensity:
         return integral
 
     def get_det_size(self, binary_file):
+        breakpoint()
         binary_file.seek(0)
         bites = binary_file.read(4)
         ncols = int.from_bytes(bites, "little")

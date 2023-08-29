@@ -13,6 +13,7 @@ from file_reader import (
     DischargeDataExtractor,
     BackgroundFilesSelector,
 )
+from utc_converter import get_time_from_UTC
 from intensity import Intensity
 
 
@@ -31,6 +32,11 @@ def generate_dates_list(start_date_str, end_date_str):
     return dates_list
 
 
+def get_triggers(date, discharge_nr):
+    fpm = FilePathManager(None, date).program_triggers()
+    return fpm
+
+
 def plot_elements_comparison(bufor, date, discharge_nr, normalized, save_fig, plot):
     fig, ax1 = plt.subplots()
     ax2 = ax1.twiny()
@@ -42,7 +48,7 @@ def plot_elements_comparison(bufor, date, discharge_nr, normalized, save_fig, pl
         plot_single_element(
             ax1, ax2, df, element, date, discharge_nr, normalized, color
         )
-
+    plot_triggers(ax1, date, discharge_nr)
     labels = [instance.element for instance in bufor]
     legend = ax2.legend(labels)
     for line in legend.get_lines():
@@ -54,28 +60,57 @@ def plot_elements_comparison(bufor, date, discharge_nr, normalized, save_fig, pl
     plt.close()
 
 
+def plot_triggers(ax, date, discharge_nr):
+    fpm = get_triggers(date, discharge_nr)
+    f_path = fpm / f"{date}_triggers.csv"
+    df2 = pd.read_csv(f_path, sep="\t")
+    wiersz = df2.loc[df2["discharge_nr"] == discharge_nr]
+    T1 = int(wiersz["T1"].to_numpy())
+    T6 = int(wiersz["T6"].to_numpy())
+
+    T1_human = get_time_from_UTC(T1)
+    T6_human = get_time_from_UTC(T6)
+
+    ax.axvline(
+        x=pd.to_datetime(T1_human, format="%H:%M:%S.%f", errors="coerce"),
+        color="black",
+        linestyle="--",
+        label="T1",
+        linewidth=1,
+    )
+    ax.axvline(
+        x=pd.to_datetime(T6_human, format="%H:%M:%S.%f", errors="coerce"),
+        color="black",
+        linestyle="--",
+        label="T6",
+        linewidth=1,
+    )
+
+
 def plot_single_element(ax1, ax2, df, element, date, discharge_nr, normalized, color):
     ax1.set_title(f"Comparison of Lyman-alpha intensities\n {date}.{discharge_nr:03}")
     intensity = df[f"QSO_{element}_{date}.{discharge_nr}"]
 
     if normalized:
         intensity /= intensity.max()
-
+    # breakpoint()
     ax1.plot(
         pd.to_datetime(df["time"], format="%H:%M:%S.%f", errors="coerce"),
         intensity,
-        alpha=0,
+        color=color,
+        linewidth=0.4,
     )
 
     ax2.plot(
         np.asarray(df["discharge_time"], float),
         intensity,
         label="discharge_time",
-        linewidth=0.4,
-        color=color,
+        alpha=0,
     )
     labels = ["C", "O"]
-    ax2.legend(labels)  # Możesz dostosować położenie legendy
+    ax1.legend(labels)  # Możesz dostosować położenie legendy
+    ###### warunek - jesli poiczatek lub koniec wyladowania nie znajduje sie pomiedzy triggerami to....abs
+    ### TODO
 
 
 def configure_axes(ax1, ax2):
@@ -107,7 +142,7 @@ def save_or_show_plot(instance, date, discharge_nr, normalized, save_fig, plot):
     if save_fig:
         plt.savefig(path / filename, dpi=200)
         print(
-            f"QSO_comparison_{image_type}_{date}.{discharge_nr:03} - ntensity evolution saved!"
+            f"QSO_comparison_{image_type}_{date}.{discharge_nr:03} - intensity evolution saved!"
         )
     if plot:
         plt.show()
@@ -116,21 +151,21 @@ def save_or_show_plot(instance, date, discharge_nr, normalized, save_fig, plot):
 def main():
     time_interval = [0, 500]
 
-    dates_list = generate_dates_list("20230101", "20230331")
-    elements_list = ["C", "O"]
-    discharges_list = [i for i in range(1, 100)]
+    # dates_list = generate_dates_list("20230101", "20230331")
+    # elements_list = ["C", "O"]
+    # discharges_list = [i for i in range(1, 100)]
 
-    # dates_list = ["20230117"]
-    # elements_list = ["C", "O"]  # , "O"]
-    # discharges_list = [14]
-    """
-    Sprawdzic gdy wiele plików - np. w przypadku
     dates_list = ["20230117"]
     elements_list = ["C", "O"]  # , "O"]
-    discharges_list = [14]
+    discharges_list = [27]  # 20230117.050 rowniez kiepsko
 
-    wszystko wrzuca an jeden wykres - a moze rysowanie linii czasu?
-    """
+    ###  TODO
+    ###  Sprawdzic gdy wiele plików - np. w przypadku
+    ###  dates_list = ["20230117"]
+    ###  elements_list = ["C", "O"]  # , "O"]
+    ###  discharges_list = [14###
+    ###  wszystko wrzuca an jeden wykres - a moze rysowanie linii czasu?
+
     for date in dates_list:
         for discharge in discharges_list:
             bufor = []
@@ -164,7 +199,7 @@ def main():
                     *parameters, normalized=False, save_fig=True, plot=False
                 )
                 plot_elements_comparison(
-                    *parameters, normalized=True, save_fig=True, plot=False
+                    *parameters, normalized=True, save_fig=True, plot=True
                 )
 
 

@@ -157,6 +157,8 @@ class ExpAssignment:
 
         ### dodac warunki
         #### SLOW - correct
+
+        ### warunek - jesli poczatek lub koniec wyladowania pomiedzy triggerami, to zapisac, jesli nie to zmienic wartosc ze to nei dane a smieci;
         dic = {}
         for idx_df_total, row_total in self.files_info.iterrows():
             for (
@@ -246,6 +248,13 @@ class ExpAssignment:
         self.files_info = merged_df.sort_values(by="file_name")
         self.files_info["frequency"] = self.files_info["frequency"].astype(int)
 
+        ### TODO - dodac kolumne - dlugosc wyladowania
+        # from intensity import Intensity
+
+        # det_size = Intensity
+        # breakpoint()
+        ###
+
     def save_file(self):
         path = self.fpm_object.discharge_nrs()
         path.mkdir(parents=True, exist_ok=True)
@@ -267,12 +276,13 @@ def get_exp_data_subdirs(element):
 
 
 if __name__ == "__main__":
-    elements = ["C", "O"]
+    elements = ["C"]  # , "O"]
     for element in elements:
         list_of_directories = get_exp_data_subdirs(element)
         for directory in list_of_directories:
-            try:
-                exp_ass = ExpAssignment(element, directory, savefile=True)
-            except ValueError:
-                print(f" {directory} - Cannot process the data - continuing.")
-                continue
+            if "20230117" in str(directory):
+                try:
+                    exp_ass = ExpAssignment(element, directory, savefile=True)
+                except ValueError:
+                    print(f" {directory} - Cannot process the data - continuing.")
+                    continue
