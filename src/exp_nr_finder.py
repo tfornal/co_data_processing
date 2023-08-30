@@ -44,8 +44,9 @@ class ExpAssignment:
         self.files_info = self.make_df()
         self.utc_time = self.get_UTC_time()
 
-        self.files_into = self.assign_discharge_nr()
+        self.assign_discharge_nr()
         self.get_frequency()
+
         if savefile:
             self.save_file()
 
@@ -86,6 +87,7 @@ class ExpAssignment:
         df.columns = ["date", "time", "miliseconds", "type_of_data", "file_size"]
         df = df.astype({"file_size": int})
         df.insert(loc=0, column="file_name", value=self.file_list)
+
         return df
 
     def _convert_human_to_UTC_ns(self, date: str, time: str, miliseconds: str) -> int:
@@ -248,12 +250,66 @@ class ExpAssignment:
         self.files_info = merged_df.sort_values(by="file_name")
         self.files_info["frequency"] = self.files_info["frequency"].astype(int)
 
-        ### TODO - dodac kolumne - dlugosc wyladowania
-        # from intensity import Intensity
+        def get_frames_nr():
+            ### TODO - dodac kolumne - dlugosc wyladowania
+            # from intensity import Intensity
+            def get_det_size(binary_file):
+                binary_file.seek(0)
+                bites = binary_file.read(4)
+                ncols = int.from_bytes(bites, "little")
 
-        # det_size = Intensity
-        # breakpoint()
-        ###
+                binary_file.seek(4)
+                bites = binary_file.read(4)
+                nrows = int.from_bytes(bites, "little")
+                return nrows, ncols
+
+            def get_pulse_length():
+                path = FilePathManager(
+                    element=self.element, date=self.date
+                ).experimental_data()
+                directory = path.glob("**/*")
+                file_paths = [x for x in directory if x.is_file()]
+                directory = path.glob("**/*")
+                file_list = [x.stem for x in directory if x.is_file()]
+                # assert self.file_list == file_list, "Listy NIE SA SOBIE ROWNE!"
+                dlugosci = []
+                for i in file_paths:
+                    with open(i, "rb") as binary_file:
+                        # print(i)
+                        rows_number, _ = get_det_size(binary_file)
+                        dlugosci.append(rows_number)
+                return file_list, dlugosci
+
+            file_list, dlugosci = get_pulse_length()  ###
+            data = {"file_name": file_list, "frames_amount": dlugosci}
+            df2 = pd.DataFrame(data)
+
+            self.files_info = (
+                self.files_info.reset_index()
+                .merge(df2, on="file_name")
+                .set_index(["date", "discharge_nr"])
+            )
+
+            def calc_acquisition_time():
+                dt = 1 / self.files_info["frequency"]
+                time = self.files_info["frames_amount"] * dt
+                self.files_info["acquisition_time"] = time.round(2)
+
+            def calc_end_utc():
+                self.files_info["utc_end_time"] = self.files_info["utc_time"] - (
+                    1_000_000_000 * self.files_info["acquisition_time"]
+                )
+                print(1_000_000_000 * self.files_info["acquisition_time"])
+
+                self.files_info["utc_end_time"] = self.files_info[
+                    "utc_end_time"
+                ].astype("int64")
+
+            calc_acquisition_time()
+            calc_end_utc()
+            # breakpoint()
+
+        get_frames_nr()
 
     def save_file(self):
         path = self.fpm_object.discharge_nrs()
@@ -276,11 +332,13 @@ def get_exp_data_subdirs(element):
 
 
 if __name__ == "__main__":
-    elements = ["C"]  # , "O"]
+    elements = ["C", "O"]  # , "O"]
     for element in elements:
         list_of_directories = get_exp_data_subdirs(element)
         for directory in list_of_directories:
-            if "20230117" in str(directory):
+            # if "20230117" in str(directory):
+            if "20230215" in str(directory):
+                # if "20230328" in str(directory):
                 try:
                     exp_ass = ExpAssignment(element, directory, savefile=True)
                 except ValueError:
