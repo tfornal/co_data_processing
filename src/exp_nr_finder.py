@@ -284,11 +284,8 @@ class ExpAssignment:
             data = {"file_name": file_list, "frames_amount": dlugosci}
             df2 = pd.DataFrame(data)
 
-            self.files_info = (
-                self.files_info.reset_index()
-                .merge(df2, on="file_name")
-                .set_index(["date", "discharge_nr"])
-            )
+            self.files_info = self.files_info.reset_index().merge(df2, on="file_name")
+            # breakpoint()
 
             def calc_acquisition_time():
                 dt = 1 / self.files_info["frequency"]
@@ -296,18 +293,19 @@ class ExpAssignment:
                 self.files_info["acquisition_time"] = time.round(2)
 
             def calc_end_utc():
-                self.files_info["utc_end_time"] = self.files_info["utc_time"] - (
+                self.files_info["utc_start_time"] = self.files_info["utc_time"] - (
                     1_000_000_000 * self.files_info["acquisition_time"]
                 )
-                print(1_000_000_000 * self.files_info["acquisition_time"])
 
-                self.files_info["utc_end_time"] = self.files_info[
-                    "utc_end_time"
+                self.files_info["utc_start_time"] = self.files_info[
+                    "utc_start_time"
                 ].astype("int64")
 
             calc_acquisition_time()
             calc_end_utc()
-            # breakpoint()
+            #### dopisac warunek sprawdzajacy czy dane sa pomiedzy triggerami
+            ### jesli tak to skorygowac rozpoczecie utc wraz z  triggerem T1
+            breakpoint()
 
         get_frames_nr()
 
