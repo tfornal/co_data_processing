@@ -174,6 +174,10 @@ class DischargeDataExtractor:
                     "file_size",
                     "utc_time",
                     "frequency",
+                    "frames_amount",
+                    "acquisition_time",
+                    "utc_start_time",
+                    "new_time",
                 ],
             )
             df = df.astype({"date": int})
