@@ -40,15 +40,18 @@ def get_triggers(date, discharge_nr):
 def plot_elements_comparison(bufor, date, discharge_nr, normalized, save_fig, plot):
     fig, ax1 = plt.subplots()
     ax2 = ax1.twiny()
-
+    time = []
     for idx, instance in enumerate(bufor):
         element = instance.element
         df = instance.df
+        time.append(len(df))
         color = "blue" if element == "C" else "red"
         plot_single_element(
             ax1, ax2, df, element, date, discharge_nr, normalized, color
         )
-    plot_triggers(ax1, date, discharge_nr)
+
+    time = max(time)
+    plot_triggers(ax1, ax2, time, date, discharge_nr)
     labels = [instance.element for instance in bufor]
     legend = ax2.legend(labels)
     for line in legend.get_lines():
@@ -60,7 +63,7 @@ def plot_elements_comparison(bufor, date, discharge_nr, normalized, save_fig, pl
     plt.close()
 
 
-def plot_triggers(ax, date, discharge_nr):
+def plot_triggers(ax, ax2, time, date, discharge_nr):
     fpm = get_triggers(date, discharge_nr)
     f_path = fpm / f"{date}_triggers.csv"
     df2 = pd.read_csv(f_path, sep="\t")
@@ -70,7 +73,6 @@ def plot_triggers(ax, date, discharge_nr):
 
     T1_human = get_time_from_UTC(T1)
     T6_human = get_time_from_UTC(T6)
-
     ax.axvline(
         x=pd.to_datetime(T1_human, format="%H:%M:%S.%f", errors="coerce"),
         color="black",
@@ -78,13 +80,22 @@ def plot_triggers(ax, date, discharge_nr):
         label="T1",
         linewidth=1,
     )
-    ax.axvline(
-        x=pd.to_datetime(T6_human, format="%H:%M:%S.%f", errors="coerce"),
-        color="black",
-        linestyle="--",
-        label="T6",
-        linewidth=1,
-    )
+    # ax.axvline(
+    #     x=pd.to_datetime(T6_human, format="%H:%M:%S.%f", errors="coerce"),
+    #     color="black",
+    #     linestyle="--",
+    #     label="T6",
+    #     linewidth=1,
+    # )
+
+    # delta = (T6 - T1) / 1e9
+    # ax2.axvline(
+    #     np.asarray(delta),
+    #     color="black",
+    #     linestyle="--",
+    #     label="T6",
+    #     linewidth=1,
+    # )
 
 
 def plot_single_element(ax1, ax2, df, element, date, discharge_nr, normalized, color):
@@ -100,7 +111,6 @@ def plot_single_element(ax1, ax2, df, element, date, discharge_nr, normalized, c
         color=color,
         linewidth=0.4,
     )
-
     ax2.plot(
         np.asarray(df["discharge_time"], float),
         intensity,
@@ -108,9 +118,7 @@ def plot_single_element(ax1, ax2, df, element, date, discharge_nr, normalized, c
         alpha=0,
     )
     labels = ["C", "O"]
-    ax1.legend(labels)  # Możesz dostosować położenie legendy
-    ###### warunek - jesli poiczatek lub koniec wyladowania nie znajduje sie pomiedzy triggerami to....abs
-    ### TODO
+    ax1.legend(labels)
 
 
 def configure_axes(ax1, ax2):
@@ -150,21 +158,19 @@ def save_or_show_plot(instance, date, discharge_nr, normalized, save_fig, plot):
 
 def main():
     time_interval = [0, 500]
+    ### sprawic aby wybieranie przedzialu czasowego sprawialo ze wybiera odpowiednie pliki
 
-    # dates_list = generate_dates_list("20230101", "20230331")
-    # elements_list = ["C", "O"]
-    # discharges_list = [i for i in range(1, 100)]
+    dates_list = generate_dates_list("20230101", "20230331")
+    elements_list = ["C", "O"]
+    discharges_list = [i for i in range(1, 100)]
 
-    dates_list = ["20230117"]
-    elements_list = ["C", "O"]  # , "O"]
-    discharges_list = [27]  # 20230117.050 rowniez kiepsko
+    # dates_list = ["20230117"]
+    # elements_list = ["C", "O"]  # , "O"]
+    # discharges_list = [27]  # 20230117.050 rowniez kiepsko
 
-    ###  TODO
-    ###  Sprawdzic gdy wiele plików - np. w przypadku
-    ###  dates_list = ["20230117"]
-    ###  elements_list = ["C", "O"]  # , "O"]
-    ###  discharges_list = [14###
-    ###  wszystko wrzuca an jeden wykres - a moze rysowanie linii czasu?
+    # dates_list = ["20230214"]
+    # elements_list = ["C", "O"]  # , "O"]
+    # discharges_list = [13]  # 20230117.050 rowniez kiepsko
 
     for date in dates_list:
         for discharge in discharges_list:
@@ -199,7 +205,7 @@ def main():
                     *parameters, normalized=False, save_fig=True, plot=False
                 )
                 plot_elements_comparison(
-                    *parameters, normalized=True, save_fig=True, plot=True
+                    *parameters, normalized=True, save_fig=True, plot=False
                 )
 
 
