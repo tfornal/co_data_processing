@@ -19,6 +19,7 @@ from triggers import Triggers
 pd.options.mode.chained_assignment = None  # default='warn'
 
 
+### napisac to proceduralnie
 class ExpAssignment:
     """This class performs the assignment of experiment numbers to files based on the UTC time they were created.
 
@@ -292,14 +293,10 @@ class ExpAssignment:
             time = self.files_info["frames_amount"] * dt
             self.files_info["acquisition_time"] = time.round(2)
 
-        def calc_end_utc():
+        def calc_start_utc():
             self.files_info["utc_start_time"] = self.files_info["utc_time"] - (
                 1_000_000_000 * self.files_info["acquisition_time"]
-            )
-
-            self.files_info["utc_start_time"] = self.files_info[
-                "utc_start_time"
-            ].astype("int64")
+            ).astype("int64")
 
         def check_if_between_triggers():
             self.files_info["discharge_nr"] = 0
@@ -341,9 +338,6 @@ class ExpAssignment:
                     except KeyError:
                         dic[idx_df_total] = row_triggers["discharge_nr"]
 
-            # breakpoint()
-            # files_info_assigned_discharges = self.files_info
-            # breakpoint()
             try:
                 self.files_info["discharge_nr"].loc[
                     np.array([i for i in dic.keys()])
@@ -356,14 +350,44 @@ class ExpAssignment:
             except ValueError:
                 print(f"\n{self.date} - no discharges registered during the day!\n")
             self.files_info.astype({"discharge_nr": "int32"}, errors="ignore")
-
             # return files_info_assigned_discharges
 
+        def shift_to_T1():
+            callibrated_start_times = {}
+            numer_wyladowania = 0
+            off = 0
+            for idx_df_total, row_total in self.files_info.iterrows():
+                for (
+                    idx_df_triggers,
+                    row_triggers,
+                ) in self.triggers_df.iterrows():
+                    if (
+                        row_total["discharge_nr"] == row_triggers["discharge_nr"]
+                        and "BGR" not in row_total["file_name"]
+                    ):
+                        if row_total["discharge_nr"] != numer_wyladowania:
+                            offset_zapisu = (
+                                row_total["utc_start_time"] - row_triggers["T1"]
+                            )
+                            off = offset_zapisu
+                            numer_wyladowania = row_total["discharge_nr"]
+                            callibrated_start_times[idx_df_total] = offset_zapisu
+                        else:
+                            callibrated_start_times[idx_df_total] = off
+            self.files_info["new_time"] = [0] * len(self.files_info)
+            idx = list(callibrated_start_times.keys())
+            offset = list(callibrated_start_times.values())
+            self.files_info["new_time"].loc[idx] = (
+                self.files_info["utc_start_time"].loc[idx]
+                - offset
+                + self.files_info["acquisition_time"] * 1e9
+            )
+            self.files_info["new_time"] = self.files_info["new_time"].astype("int64")
+
         calc_acquisition_time()
-        calc_end_utc()
+        calc_start_utc()
         check_if_between_triggers()
-        #### dopisac warunek sprawdzajacy czy dane sa pomiedzy triggerami
-        ### jesli tak to skorygowac rozpoczecie utc wraz z  triggerem T1
+        shift_to_T1()
 
     def save_file(self):
         path = self.fpm_object.discharge_nrs()
@@ -386,15 +410,15 @@ def get_exp_data_subdirs(element):
 
 
 if __name__ == "__main__":
-    elements = ["O"]  # "O"]  # , "O"]
+    elements = ["C", "O"]  # , "O"]  # "O"]  # , "O"]
     for element in elements:
         list_of_directories = get_exp_data_subdirs(element)
         for directory in list_of_directories:
-            # if "20230117" in str(directory):
-            if "20230215" in str(directory):
-                # if "20230328" in str(directory):
-                try:
-                    exp_ass = ExpAssignment(element, directory, savefile=True)
-                except ValueError:
-                    print(f" {directory} - Cannot process the data - continuing.")
-                    continue
+            # if "20230214" in str(directory):
+            # if "20230215" in str(directory):
+            # if "20230328" in str(directory):
+            try:
+                exp_ass = ExpAssignment(element, directory, savefile=True)
+            except ValueError:
+                print(f" {directory} - Cannot process the data - continuing.")
+                continue
