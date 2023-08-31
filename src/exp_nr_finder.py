@@ -201,7 +201,7 @@ class ExpAssignment:
                         dic[idx_df_total] = row_triggers["discharge_nr"]
                 except KeyError:
                     dic[idx_df_total] = row_triggers["discharge_nr"]
-
+        # breakpoint()
         files_info_assigned_discharges = self.files_info
         try:
             files_info_assigned_discharges["discharge_nr"].loc[
@@ -250,64 +250,120 @@ class ExpAssignment:
         self.files_info = merged_df.sort_values(by="file_name")
         self.files_info["frequency"] = self.files_info["frequency"].astype(int)
 
-        def get_frames_nr():
-            ### TODO - dodac kolumne - dlugosc wyladowania
-            # from intensity import Intensity
-            def get_det_size(binary_file):
-                binary_file.seek(0)
-                bites = binary_file.read(4)
-                ncols = int.from_bytes(bites, "little")
+        # def get_frames_nr():
+        #     ### TODO - dodac kolumne - dlugosc wyladowania
+        #     # from intensity import Intensity
+        def get_det_size(binary_file):
+            binary_file.seek(0)
+            bites = binary_file.read(4)
+            ncols = int.from_bytes(bites, "little")
 
-                binary_file.seek(4)
-                bites = binary_file.read(4)
-                nrows = int.from_bytes(bites, "little")
-                return nrows, ncols
+            binary_file.seek(4)
+            bites = binary_file.read(4)
+            nrows = int.from_bytes(bites, "little")
+            return nrows, ncols
 
-            def get_pulse_length():
-                path = FilePathManager(
-                    element=self.element, date=self.date
-                ).experimental_data()
-                directory = path.glob("**/*")
-                file_paths = [x for x in directory if x.is_file()]
-                directory = path.glob("**/*")
-                file_list = [x.stem for x in directory if x.is_file()]
-                # assert self.file_list == file_list, "Listy NIE SA SOBIE ROWNE!"
-                dlugosci = []
-                for i in file_paths:
-                    with open(i, "rb") as binary_file:
-                        # print(i)
-                        rows_number, _ = get_det_size(binary_file)
-                        dlugosci.append(rows_number)
-                return file_list, dlugosci
+        def get_pulse_length():
+            path = FilePathManager(
+                element=self.element, date=self.date
+            ).experimental_data()
+            directory = path.glob("**/*")
+            file_paths = [x for x in directory if x.is_file()]
+            directory = path.glob("**/*")
+            file_list = [x.stem for x in directory if x.is_file()]
+            # assert self.file_list == file_list, "Listy NIE SA SOBIE ROWNE!"
+            dlugosci = []
+            for i in file_paths:
+                with open(i, "rb") as binary_file:
+                    # print(i)
+                    rows_number, _ = get_det_size(binary_file)
+                    dlugosci.append(rows_number)
+            return file_list, dlugosci
 
-            file_list, dlugosci = get_pulse_length()  ###
-            data = {"file_name": file_list, "frames_amount": dlugosci}
-            df2 = pd.DataFrame(data)
+        file_list, dlugosci = get_pulse_length()  ###
+        data = {"file_name": file_list, "frames_amount": dlugosci}
+        df2 = pd.DataFrame(data)
 
-            self.files_info = self.files_info.reset_index().merge(df2, on="file_name")
+        self.files_info = self.files_info.reset_index().merge(df2, on="file_name")
+        # breakpoint()
+
+        def calc_acquisition_time():
+            dt = 1 / self.files_info["frequency"]
+            time = self.files_info["frames_amount"] * dt
+            self.files_info["acquisition_time"] = time.round(2)
+
+        def calc_end_utc():
+            self.files_info["utc_start_time"] = self.files_info["utc_time"] - (
+                1_000_000_000 * self.files_info["acquisition_time"]
+            )
+
+            self.files_info["utc_start_time"] = self.files_info[
+                "utc_start_time"
+            ].astype("int64")
+
+        def check_if_between_triggers():
+            self.files_info["discharge_nr"] = 0
+            dic = {}
+            for idx_df_total, row_total in self.files_info.iterrows():
+                for (
+                    idx_df_triggers,
+                    row_triggers,
+                ) in self.triggers_df.iterrows():
+                    try:
+                        if idx_df_triggers == 0:
+                            continue
+
+                        if (row_total.file_size > 10) and (
+                            (
+                                self.triggers_df["T1"].loc[idx_df_triggers]
+                                < row_total["utc_start_time"]
+                                < self.triggers_df["T6"].loc[idx_df_triggers]
+                            )
+                            or (
+                                (
+                                    self.triggers_df["T1"].loc[idx_df_triggers]
+                                    < row_total["utc_time"]
+                                    < self.triggers_df["T6"].loc[idx_df_triggers]
+                                )
+                            )
+                        ):
+                            dic[idx_df_total] = row_triggers["discharge_nr"]
+                            continue
+                        elif "BGR" in row_total["file_name"]:
+                            if (
+                                self.triggers_df["T6"].loc[idx_df_triggers - 1]
+                                < row_total["utc_time"]
+                                < self.triggers_df["T6"].loc[idx_df_triggers]
+                            ):
+                                dic[idx_df_total] = row_triggers["discharge_nr"]
+                                continue
+                        row_total["type_of_data"] == "Trash"
+                    except KeyError:
+                        dic[idx_df_total] = row_triggers["discharge_nr"]
+
             # breakpoint()
+            # files_info_assigned_discharges = self.files_info
+            # breakpoint()
+            try:
+                self.files_info["discharge_nr"].loc[
+                    np.array([i for i in dic.keys()])
+                ] = np.array([i for i in dic.values()])
+                indexes_to_assign = self.files_info.index[
+                    ~self.files_info.index.isin(dic)
+                ]
+                # breakpoint()
+                self.files_info["type_of_data"].loc[indexes_to_assign] = "trash"
+            except ValueError:
+                print(f"\n{self.date} - no discharges registered during the day!\n")
+            self.files_info.astype({"discharge_nr": "int32"}, errors="ignore")
 
-            def calc_acquisition_time():
-                dt = 1 / self.files_info["frequency"]
-                time = self.files_info["frames_amount"] * dt
-                self.files_info["acquisition_time"] = time.round(2)
+            # return files_info_assigned_discharges
 
-            def calc_end_utc():
-                self.files_info["utc_start_time"] = self.files_info["utc_time"] - (
-                    1_000_000_000 * self.files_info["acquisition_time"]
-                )
-
-                self.files_info["utc_start_time"] = self.files_info[
-                    "utc_start_time"
-                ].astype("int64")
-
-            calc_acquisition_time()
-            calc_end_utc()
-            #### dopisac warunek sprawdzajacy czy dane sa pomiedzy triggerami
-            ### jesli tak to skorygowac rozpoczecie utc wraz z  triggerem T1
-            breakpoint()
-
-        get_frames_nr()
+        calc_acquisition_time()
+        calc_end_utc()
+        check_if_between_triggers()
+        #### dopisac warunek sprawdzajacy czy dane sa pomiedzy triggerami
+        ### jesli tak to skorygowac rozpoczecie utc wraz z  triggerem T1
 
     def save_file(self):
         path = self.fpm_object.discharge_nrs()
@@ -330,7 +386,7 @@ def get_exp_data_subdirs(element):
 
 
 if __name__ == "__main__":
-    elements = ["C", "O"]  # , "O"]
+    elements = ["O"]  # "O"]  # , "O"]
     for element in elements:
         list_of_directories = get_exp_data_subdirs(element)
         for directory in list_of_directories:
