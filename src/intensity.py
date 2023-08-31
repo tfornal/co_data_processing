@@ -49,7 +49,6 @@ class Intensity:
         self.exp_info_df = DischargeDataExtractor(
             self.element, self.date, self.file_name
         ).discharge_data
-
         self.utc_time_of_saved_file = self._get_utc_time()
         self.frequency = self._get_frequency()
         self.bgr_files = self._get_bgr_files()
@@ -84,6 +83,7 @@ class Intensity:
         )
         self.intensity = self.get_intensity()
         self.df = self.make_df(save_df)
+
         self.plot(plot, save_fig)
 
     def get_intensity(self):
@@ -96,7 +96,7 @@ class Intensity:
         return intensity
 
     def _get_utc_time(self):
-        return int(self.exp_info_df["utc_time"].iloc[0])
+        return int(self.exp_info_df["new_time"].iloc[0])
 
     def _get_frequency(self):
         return int(self.exp_info_df["frequency"].iloc[0])
@@ -146,7 +146,6 @@ class Intensity:
         return integral
 
     def get_det_size(self, binary_file):
-        breakpoint()
         binary_file.seek(0)
         bites = binary_file.read(4)
         ncols = int.from_bytes(bites, "little")
@@ -241,11 +240,8 @@ class Intensity:
 
         time = list(map(get_time_from_UTC, df["utc_timestamps"]))
 
-        x_labels = [
-            date.strftime("%H:%M:%S.%f")[:-3] if date.microsecond % 1_000 == 0 else ""
-            for date in time
-        ]
-
+        x_labels = [date.strftime("%H:%M:%S.%f")[:-4] for date in time]
+        # breakpoint()
         df["time"] = x_labels
 
         def save():
