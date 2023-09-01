@@ -1,3 +1,4 @@
+## napisac proceduralnie
 """
 The code must contain only the data folder containing the corresponding folders 
 in "YYMMDD" format. Subsequent sub-folders (with their names in YYMMDD format) 
@@ -16,10 +17,13 @@ from file_reader import FileInformationCollector, FilePathManager
 from triggers import Triggers
 
 
-pd.options.mode.chained_assignment = None  # default='warn'
+pd.options.mode.chained_assignment = None
 
 
-### napisac to proceduralnie
+class ParameterReader:
+    pass
+
+
 class ExpAssignment:
     """This class performs the assignment of experiment numbers to files based on the UTC time they were created.
 
@@ -35,13 +39,15 @@ class ExpAssignment:
         """
         self.element = element
         self.path = path
+        self.date = path.stem
+
         self.fpm_object = FilePathManager(self.element, None)
         self.fobject = FileInformationCollector(self.path)
 
-        self.file_list = self._get_file_list()
+        self.fname_list = self._get_file_list()
         self.file_sizes = self._get_file_sizes()
-        self.date = self._get_date_from_files()
-        self.triggers_df = self._get_triggers()
+        self.triggers_df = self._get_triggers(self.date)
+        # breakpoint()
         self.files_info = self.make_df()
         self.utc_time = self.get_UTC_time()
 
@@ -57,37 +63,65 @@ class ExpAssignment:
     def _get_file_sizes(self):
         return self.fobject.file_sizes
 
-    def _get_date_from_files(self):
-        return self.fobject.date
-
-    def _get_triggers(self):
-        t = Triggers(self.date)
+    def _get_triggers(self, date):
+        t = Triggers(date)
         return t.triggers_df
 
-    def retrieve_file_info(self):
-        splitted_fnames = []
-        for file_name, file_size in zip(self.file_list, self.file_sizes):
-            fname_parts = file_name.split("_")
-            ## change time format from 12 to 24 hour
-            if fname_parts[1].startswith("PM"):
-                hour = 12 + int(fname_parts[1][2:][:2])
+    def convert_fname_to_time(self, file_name):
+        fname_parts = file_name.split("_")
+        time_part = fname_parts[1]
 
-                fname_parts[1] = f"{hour}{fname_parts[1][4:]}"
-            elif fname_parts[1].startswith("AM"):
-                fname_parts[1] = fname_parts[1][2:]
-            splitted_fnames.append(fname_parts)
-        return splitted_fnames
+        if time_part.startswith("PM"):
+            hour = int(time_part[2:4])
+            if hour != 12:
+                hour += 12
+            fname_parts[1] = f"{hour:02}{time_part[4:]}"
+        elif time_part.startswith("AM"):
+            if time_part.startswith("12"):
+                fname_parts[1] = f"00{time_part[4:]}"
+            else:
+                fname_parts[1] = time_part[2:]
 
-    def make_df(self):
-        splitted_fnames = self.retrieve_file_info()
-        df = pd.DataFrame(splitted_fnames)
-        if len(df.columns) == 3:
+        return fname_parts
+
+    def get_info_from_fname(self):
+        return list(
+            map(
+                lambda file_name: self.convert_fname_to_time(file_name), self.fname_list
+            )
+        )
+
+    def _check_if_longer(self, list_of_sublists: list) -> bool:
+        any_longer_than_3 = any(len(sublist) > 3 for sublist in list_of_sublists)
+
+        if any_longer_than_3:
+            return True
+
+    def make_df(self) -> pd.DataFrame:
+        splitted_fnames = self.get_info_from_fname()
+        columns = ["date", "time", "miliseconds"]
+        if self._check_if_longer(splitted_fnames):
+            columns.append("type_of_data")
+            df = pd.DataFrame(splitted_fnames, columns=columns)
+        else:
+            df = pd.DataFrame(splitted_fnames, columns=columns)
             df["type_of_data"] = "spectrum"
-        df = df.fillna("spectrum")
+
+        df["file_name"] = self.fname_list
         df["file_size"] = self.file_sizes
-        df.columns = ["date", "time", "miliseconds", "type_of_data", "file_size"]
-        df = df.astype({"file_size": int})
-        df.insert(loc=0, column="file_name", value=self.file_list)
+        df["date"] = "20" + df["date"]
+        df["file_size"] = df["file_size"].astype(int)
+
+        df["type_of_data"].fillna("spectrum", inplace=True)
+        new_order = [
+            "date",
+            "file_name",
+            "time",
+            "miliseconds",
+            "type_of_data",
+            "file_size",
+        ]
+        df = df[new_order]
 
         return df
 
@@ -107,8 +141,7 @@ class ExpAssignment:
         int
             The UTC timestamp in nanoseconds corresponding to the given date and time.
         """
-
-        date = "20" + date
+        # date = "20" + date
 
         # convert European/Berlin timezonee to UTC
         from_zone = tz.gettz("Europe/Berlin")
@@ -120,8 +153,8 @@ class ExpAssignment:
         )
 
         utc_time_in_ns = (
-            int(round(calendar.timegm(discharge_time.utctimetuple()))) * 1_000_000_000
-            + int(miliseconds) * 1_000_000
+            int(round(calendar.timegm(discharge_time.utctimetuple()))) * 1e9
+            + int(miliseconds) * 1e6
         )
         return utc_time_in_ns
 
@@ -143,7 +176,9 @@ class ExpAssignment:
         self.files_info["discharge_nr"] = "-"
         return self.files_info["utc_time"].tolist()
 
-    def assign_discharge_nr(self):
+    def assign_discharge_nr(
+        self,
+    ):
         """
         Assigns the discharge number to each data point in `self.files_info` based on its `utc_time`.
 
@@ -313,14 +348,19 @@ class ExpAssignment:
                         if (row_total.file_size > 10) and (
                             (
                                 self.triggers_df["T1"].loc[idx_df_triggers]
-                                < row_total["utc_start_time"]
+                                < (row_total["utc_start_time"] or row_total["utc_time"])
                                 < self.triggers_df["T6"].loc[idx_df_triggers]
                             )
                             or (
                                 (
-                                    self.triggers_df["T1"].loc[idx_df_triggers]
+                                    row_total["utc_start_time"]
+                                    < self.triggers_df["T1"].loc[idx_df_triggers]
                                     < row_total["utc_time"]
+                                )
+                                and (
+                                    row_total["utc_start_time"]
                                     < self.triggers_df["T6"].loc[idx_df_triggers]
+                                    < row_total["utc_time"]
                                 )
                             )
                         ):
@@ -410,15 +450,13 @@ def get_exp_data_subdirs(element):
 
 
 if __name__ == "__main__":
-    elements = ["C", "O"]  # , "O"]  # "O"]  # , "O"]
+    elements = ["C"]  # , "O"]
     for element in elements:
         list_of_directories = get_exp_data_subdirs(element)
         for directory in list_of_directories:
-            # if "20230214" in str(directory):
-            # if "20230215" in str(directory):
-            # if "20230328" in str(directory):
-            try:
-                exp_ass = ExpAssignment(element, directory, savefile=True)
-            except ValueError:
-                print(f" {directory} - Cannot process the data - continuing.")
-                continue
+            if "20230117" in str(directory):
+                try:
+                    exp_ass = ExpAssignment(element, directory, savefile=True)
+                except ValueError:
+                    print(f" {directory} - Cannot process the data - continuing.")
+                    continue
