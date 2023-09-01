@@ -161,16 +161,12 @@ def main():
     ### sprawic aby wybieranie przedzialu czasowego sprawialo ze wybiera odpowiednie pliki
 
     dates_list = generate_dates_list("20230101", "20230331")
-    elements_list = ["C", "O"]
+    elements_list = ["C"]  # , "O"]
     discharges_list = [i for i in range(1, 100)]
 
-    # dates_list = ["20230117"]
-    # elements_list = ["C", "O"]  # , "O"]
-    # discharges_list = [27]  # 20230117.050 rowniez kiepsko
-
-    # dates_list = ["20230214"]
-    # elements_list = ["C", "O"]  # , "O"]
-    # discharges_list = [13]  # 20230117.050 rowniez kiepsko
+    dates_list = ["20230117"]
+    elements_list = ["C", "O"]  # , "O"]  # , "O"]
+    discharges_list = [14]  # 20230117.050 rowniez kiepsko
 
     for date in dates_list:
         for discharge in discharges_list:
@@ -191,7 +187,7 @@ def main():
                                 time_interval,
                                 save_df=True,
                                 save_fig=True,
-                                plot=False,
+                                plot=True,
                             )
                         )
                 except FileNotFoundError:
