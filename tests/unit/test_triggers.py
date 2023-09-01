@@ -1,8 +1,6 @@
 import pandas as pd
 import pytest
 from file_reader import FilePathManager
-from data_processing import src
-
 
 @pytest.fixture
 def get_trigger_files_paths():
