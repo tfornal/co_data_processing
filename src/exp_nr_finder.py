@@ -16,12 +16,7 @@ import pandas as pd
 from file_reader import FileInformationCollector, FilePathManager
 from triggers import Triggers
 
-
 pd.options.mode.chained_assignment = None
-
-
-class ParameterReader:
-    pass
 
 
 class ExpAssignment:
