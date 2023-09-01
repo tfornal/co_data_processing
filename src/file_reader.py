@@ -165,20 +165,6 @@ class DischargeDataExtractor:
             df = pd.read_csv(
                 data,
                 sep="\t",
-                usecols=[
-                    "date",
-                    "discharge_nr",
-                    "file_name",
-                    "time",
-                    "type_of_data",
-                    "file_size",
-                    "utc_time",
-                    "frequency",
-                    "frames_amount",
-                    "acquisition_time",
-                    "utc_start_time",
-                    "new_time",
-                ],
             )
             df = df.astype({"date": int})
             discharge_data = df.loc[df["file_name"] == self.file_name.stem]
