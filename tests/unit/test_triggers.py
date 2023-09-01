@@ -1,6 +1,7 @@
 import pandas as pd
 import pytest
 from file_reader import FilePathManager
+from data_processing import src
 
 
 @pytest.fixture
