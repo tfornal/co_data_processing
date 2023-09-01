@@ -47,11 +47,8 @@ class ExpAssignment:
         self.fname_list = self._get_file_list()
         self.file_sizes = self._get_file_sizes()
         self.triggers_df = self._get_triggers(self.date)
-        # breakpoint()
         self.files_info = self.make_df()
-        self.utc_time = self.get_UTC_time()
-
-        self.assign_discharge_nr()
+        self.get_UTC_time(self.files_info)
         self.get_frequency()
 
         if savefile:
@@ -141,9 +138,6 @@ class ExpAssignment:
         int
             The UTC timestamp in nanoseconds corresponding to the given date and time.
         """
-        # date = "20" + date
-
-        # convert European/Berlin timezonee to UTC
         from_zone = tz.gettz("Europe/Berlin")
         to_zone = tz.gettz("UTC")
         discharge_time = (
@@ -152,13 +146,14 @@ class ExpAssignment:
             .astimezone(to_zone)
         )
 
-        utc_time_in_ns = (
-            int(round(calendar.timegm(discharge_time.utctimetuple()))) * 1e9
+        utc_time_in_ns = int(
+            round(calendar.timegm(discharge_time.utctimetuple())) * 1e9
             + int(miliseconds) * 1e6
         )
+
         return utc_time_in_ns
 
-    def get_UTC_time(self):
+    def get_UTC_time(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Calculates the UTC timestamp for each row of `files_info` and adds it as a new column named 'utc_time'.
 
@@ -167,88 +162,16 @@ class ExpAssignment:
         List : int
             The list of UTC timestamps for each row of `files_info`.
         """
-        self.files_info["utc_time"] = self.files_info.apply(
+        df["utc_time"] = df.apply(
             lambda row: self._convert_human_to_UTC_ns(
                 row["date"], row["time"], row["miliseconds"]
             ),
             axis=1,
         )
-        self.files_info["discharge_nr"] = "-"
-        return self.files_info["utc_time"].tolist()
+        df["utc_time"] = df["utc_time"].astype("int64")
+        df["discharge_nr"] = "-"
 
-    def assign_discharge_nr(
-        self,
-    ):
-        """
-        Assigns the discharge number to each data point in `self.files_info` based on its `utc_time`.
-
-        The discharge number is taken from `self.triggers_df`. For each row in `self.files_info`, this function
-        iterates through each row in `self.triggers_df` to find a corresponding discharge number, by checking if the
-        `utc_time` of the current row in `self.files_info` falls between the `T0` of the current and previous row
-        in `self.triggers_df`.
-
-        If a match is found, the discharge number of the corresponding row in `self.triggers_df` is appended to a list.
-        The list is then transformed into a numpy array and used to update the `discharge_nr` column in `self.files_info`.
-
-        If there is no discharge registered during the day, a message is printed with the date.
-        """
-
-        ### dodac warunki
-        #### SLOW - correct
-
-        ### warunek - jesli poczatek lub koniec wyladowania pomiedzy triggerami, to zapisac, jesli nie to zmienic wartosc ze to nei dane a smieci;
-        dic = {}
-        for idx_df_total, row_total in self.files_info.iterrows():
-            for (
-                idx_df_triggers,
-                row_triggers,
-            ) in self.triggers_df.iterrows():
-                try:
-                    if idx_df_triggers == 0:
-                        continue
-                    if "BGR" in row_total["file_name"]:
-                        if (
-                            self.triggers_df["T6"].loc[idx_df_triggers - 1]
-                            < row_total["utc_time"]
-                            < self.triggers_df["T6"].loc[idx_df_triggers]
-                        ):
-                            dic[idx_df_total] = row_triggers["discharge_nr"]
-                            continue
-
-                    elif (row_total.file_size > 10) and (
-                        self.triggers_df["T1"].loc[idx_df_triggers - 1]
-                        < row_total["utc_time"]
-                        < self.triggers_df["T1"].loc[idx_df_triggers]
-                    ):
-                        dic[idx_df_total] = row_triggers["discharge_nr"] - 1
-                        continue
-                    elif (row_total.file_size > 10) and (
-                        self.triggers_df["T6"].loc[idx_df_triggers - 1]
-                        < row_total["utc_time"]
-                        < self.triggers_df["T6"].loc[idx_df_triggers]
-                    ):
-                        dic[idx_df_total] = row_triggers["discharge_nr"]
-
-                    elif (
-                        self.triggers_df["T6"].loc[idx_df_triggers - 1]
-                        < row_total["utc_time"]
-                        < self.triggers_df["T1"].loc[idx_df_triggers]
-                    ):
-                        dic[idx_df_total] = row_triggers["discharge_nr"]
-                except KeyError:
-                    dic[idx_df_total] = row_triggers["discharge_nr"]
-        # breakpoint()
-        files_info_assigned_discharges = self.files_info
-        try:
-            files_info_assigned_discharges["discharge_nr"].loc[
-                np.array([i for i in dic.keys()])
-            ] = np.array([i for i in dic.values()])
-        except ValueError:
-            print(f"\n{self.date} - no discharges registered during the day!\n")
-        files_info_assigned_discharges.astype(
-            {"discharge_nr": "int32"}, errors="ignore"
-        )
-        return files_info_assigned_discharges
+        return df
 
     def get_frequency(self):
         path = self.fpm_object.experimental_data_parameters()
