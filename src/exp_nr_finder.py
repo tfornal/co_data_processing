@@ -5,7 +5,7 @@ in "YYMMDD" format. Subsequent sub-folders (with their names in YYMMDD format)
 must contain the data recorded by the C/O monitor system (in *.dat format) .
 """
 import calendar
-import pathlib
+from pathlib import Path
 from dateutil import tz
 from datetime import datetime
 
@@ -38,19 +38,24 @@ class ExpAssignment:
         Initializes the ExpAssignment object with the directory path and saves the file if specified.
         """
         self.element = element
-        self.path = path
         self.date = path.stem
 
-        self.fpm_object = FilePathManager(self.element, None)
-        self.fobject = FileInformationCollector(self.path)
-
+        self.fpm_object = FilePathManager(element, None)
+        self.fobject = FileInformationCollector(path)
         self.fname_list = self._get_file_list()
         self.file_sizes = self._get_file_sizes()
         self.triggers_df = self._get_triggers(self.date)
-        self.files_info = self.make_df()
-        self.get_UTC_time(self.files_info)
-        self.get_frequency()
+        self.make_df_with_files_info(self.element, savefile)
 
+    def make_df_with_files_info(self, element, savefile):
+        self.files_info = self.make_df()
+        self._get_utc_time(self.files_info)
+        ## why assign another variable?
+        self.files_info = self._get_frequency(self.element, self.files_info)
+        self._update_acquisition_time(self.files_info)
+        self._calc_utc_start_time_ns(self.files_info)
+        self._assign_discharge_nrs(self.files_info, self.triggers_df, self.date)
+        self._shift_to_T1(self.files_info, self.triggers_df)
         if savefile:
             self.save_file()
 
@@ -118,11 +123,11 @@ class ExpAssignment:
             "type_of_data",
             "file_size",
         ]
-        df = df[new_order]
+        files_info_df = df[new_order]
 
-        return df
+        return files_info_df
 
-    def _convert_human_to_UTC_ns(self, date: str, time: str, miliseconds: str) -> int:
+    def _convert_human_to_utc_ns(self, date: str, time: str, miliseconds: str) -> int:
         """
         Converts a given date and time to UTC timestamp in nanoseconds.
 
@@ -153,7 +158,7 @@ class ExpAssignment:
 
         return utc_time_in_ns
 
-    def get_UTC_time(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _get_utc_time(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Calculates the UTC timestamp for each row of `files_info` and adds it as a new column named 'utc_time'.
 
@@ -163,7 +168,7 @@ class ExpAssignment:
             The list of UTC timestamps for each row of `files_info`.
         """
         df["utc_time"] = df.apply(
-            lambda row: self._convert_human_to_UTC_ns(
+            lambda row: self._convert_human_to_utc_ns(
                 row["date"], row["time"], row["miliseconds"]
             ),
             axis=1,
@@ -173,184 +178,147 @@ class ExpAssignment:
 
         return df
 
-    def get_frequency(self):
-        path = self.fpm_object.experimental_data_parameters()
-        setup_notes = path / f"{self.element}-camera_setups.csv"
+    def get_det_size(self, binary_file):
+        # nr of rows means the number of collected frames
+        binary_file.seek(4)
+        bites = binary_file.read(4)
+        nrows = int.from_bytes(bites, "little")
+
+        return nrows
+
+    def get_pulse_length(self, element, date):
+        path_manager = FilePathManager(element, date)
+        path = path_manager.experimental_data()
+
+        file_paths = list(path.glob("**/*"))
+        file_list = [x.stem for x in file_paths if x.is_file()]
+
+        dlugosci = []
+        for file_path in file_paths:
+            with open(file_path, "rb") as binary_file:
+                rows_number = self.get_det_size(binary_file)
+                dlugosci.append(rows_number)
+
+        return file_list, dlugosci
+
+    def _get_frequency(self, element, files_info_df):
+        path_exp_data_params = self.fpm_object.experimental_data_parameters()
+        setup_notes = path_exp_data_params / f"{element}-camera_setups.csv"
         with open(setup_notes, "r") as data:
-            df = pd.read_csv(
+            camera_setups = pd.read_csv(
                 data, sep=",", usecols=["date", "discharge_nr", "ITTE_frequency"]
             )
-            df = df.astype({"date": int})
-
-        def change_dates_format(date_integer):
-            date_string = str(date_integer)
-            if len(date_string) == 8:
-                new_date_string = date_string[2:]
-                new_date_integer = str(new_date_string)
-                return new_date_integer
-            else:
-                return date_integer
-
-        df["date"] = df["date"].apply(change_dates_format)
+            camera_setups = camera_setups.astype({"date": int})
 
         # both dataframes indexed by "date" and "discharge_nr" columns
-        df = df.set_index(["date", "discharge_nr"])
-        self.files_info = self.files_info.set_index(["date", "discharge_nr"])
+        camera_setups = camera_setups.set_index(["date", "discharge_nr"])
+        files_info_df = files_info_df.set_index(["date", "discharge_nr"])
 
         # merge both dataframes by indexed columns
-        merged_df = self.files_info.merge(
-            df, left_index=True, right_index=True, how="left"
+        merged_df = files_info_df.merge(
+            camera_setups, left_index=True, right_index=True, how="left"
         )
         merged_df["frequency"] = merged_df["ITTE_frequency"]
         merged_df.drop("ITTE_frequency", axis=1, inplace=True)
-
         merged_df["frequency"].fillna(200, inplace=True)
 
-        self.files_info = merged_df.sort_values(by="file_name")
-        self.files_info["frequency"] = self.files_info["frequency"].astype(int)
-
-        # def get_frames_nr():
-        #     ### TODO - dodac kolumne - dlugosc wyladowania
-        #     # from intensity import Intensity
-        def get_det_size(binary_file):
-            binary_file.seek(0)
-            bites = binary_file.read(4)
-            ncols = int.from_bytes(bites, "little")
-
-            binary_file.seek(4)
-            bites = binary_file.read(4)
-            nrows = int.from_bytes(bites, "little")
-            return nrows, ncols
-
-        def get_pulse_length():
-            path = FilePathManager(
-                element=self.element, date=self.date
-            ).experimental_data()
-            directory = path.glob("**/*")
-            file_paths = [x for x in directory if x.is_file()]
-            directory = path.glob("**/*")
-            file_list = [x.stem for x in directory if x.is_file()]
-            # assert self.file_list == file_list, "Listy NIE SA SOBIE ROWNE!"
-            dlugosci = []
-            for i in file_paths:
-                with open(i, "rb") as binary_file:
-                    # print(i)
-                    rows_number, _ = get_det_size(binary_file)
-                    dlugosci.append(rows_number)
-            return file_list, dlugosci
-
-        file_list, dlugosci = get_pulse_length()  ###
-        data = {"file_name": file_list, "frames_amount": dlugosci}
+        files_info_df = merged_df.sort_values(by="file_name")
+        files_info_df["frequency"] = files_info_df["frequency"].astype(int)
+        file_list, pulse_lengths = self.get_pulse_length(self.element, self.date)
+        data = {"file_name": file_list, "frames_amount": pulse_lengths}
         df2 = pd.DataFrame(data)
+        files_info_df = files_info_df.reset_index().merge(df2, on="file_name")
 
-        self.files_info = self.files_info.reset_index().merge(df2, on="file_name")
-        # breakpoint()
+        return files_info_df
 
-        def calc_acquisition_time():
-            dt = 1 / self.files_info["frequency"]
-            time = self.files_info["frames_amount"] * dt
-            self.files_info["acquisition_time"] = time.round(2)
+    def _update_acquisition_time(self, files_info_df):
+        dt = 1 / files_info_df["frequency"]
+        time = files_info_df["frames_amount"] * dt
+        files_info_df["acquisition_time"] = time.round(2)
 
-        def calc_start_utc():
-            self.files_info["utc_start_time"] = self.files_info["utc_time"] - (
-                1_000_000_000 * self.files_info["acquisition_time"]
-            ).astype("int64")
+    def _calc_utc_start_time_ns(self, files_info_df):
+        files_info_df["utc_start_time"] = files_info_df["utc_time"] - (
+            1e9 * files_info_df["acquisition_time"]
+        ).astype("int64")
 
-        def check_if_between_triggers():
-            self.files_info["discharge_nr"] = 0
-            dic = {}
-            for idx_df_total, row_total in self.files_info.iterrows():
-                for (
-                    idx_df_triggers,
-                    row_triggers,
-                ) in self.triggers_df.iterrows():
-                    try:
-                        if idx_df_triggers == 0:
-                            continue
+    def _assign_discharge_nrs(self, files_info_df, triggers_df, date):
+        files_info_df["discharge_nr"] = 0
+        dictionary = {}
 
-                        if (row_total.file_size > 10) and (
-                            (
-                                self.triggers_df["T1"].loc[idx_df_triggers]
-                                < (row_total["utc_start_time"] or row_total["utc_time"])
-                                < self.triggers_df["T6"].loc[idx_df_triggers]
-                            )
-                            or (
-                                (
-                                    row_total["utc_start_time"]
-                                    < self.triggers_df["T1"].loc[idx_df_triggers]
-                                    < row_total["utc_time"]
-                                )
-                                and (
-                                    row_total["utc_start_time"]
-                                    < self.triggers_df["T6"].loc[idx_df_triggers]
-                                    < row_total["utc_time"]
-                                )
-                            )
-                        ):
-                            dic[idx_df_total] = row_triggers["discharge_nr"]
-                            continue
-                        elif "BGR" in row_total["file_name"]:
-                            if (
-                                self.triggers_df["T6"].loc[idx_df_triggers - 1]
-                                < row_total["utc_time"]
-                                < self.triggers_df["T6"].loc[idx_df_triggers]
-                            ):
-                                dic[idx_df_total] = row_triggers["discharge_nr"]
-                                continue
-                        row_total["type_of_data"] == "Trash"
-                    except KeyError:
-                        dic[idx_df_total] = row_triggers["discharge_nr"]
+        for idx_df_total, row_total in files_info_df.iterrows():
+            utc_time = row_total["utc_time"]
+            discharge_nr = None
 
-            try:
-                self.files_info["discharge_nr"].loc[
-                    np.array([i for i in dic.keys()])
-                ] = np.array([i for i in dic.values()])
-                indexes_to_assign = self.files_info.index[
-                    ~self.files_info.index.isin(dic)
-                ]
-                # breakpoint()
-                self.files_info["type_of_data"].loc[indexes_to_assign] = "trash"
-            except ValueError:
-                print(f"\n{self.date} - no discharges registered during the day!\n")
-            self.files_info.astype({"discharge_nr": "int32"}, errors="ignore")
-            # return files_info_assigned_discharges
+            for idx_df_triggers, row_triggers in triggers_df.iterrows():
+                t1 = row_triggers["T1"]
+                t6 = row_triggers["T6"]
+                discharge_nr_trigger = row_triggers["discharge_nr"]
+                if (
+                    "BGR" not in row_total["file_name"]
+                    and idx_df_triggers != 0
+                    and row_total["file_size"] > 10
+                    and (
+                        # checks if the data were saved even 15s after T6
+                        # (just in case file saving took too much time)
+                        (t1 < utc_time < t6 + 15e9)
+                        or (
+                            t1 < row_total["utc_start_time"] < utc_time
+                            and t1 < row_total["utc_time"] < t6
+                        )
+                    )
+                ):
+                    discharge_nr = discharge_nr_trigger
+                    break
 
-        def shift_to_T1():
-            callibrated_start_times = {}
-            numer_wyladowania = 0
-            off = 0
-            for idx_df_total, row_total in self.files_info.iterrows():
-                for (
-                    idx_df_triggers,
-                    row_triggers,
-                ) in self.triggers_df.iterrows():
-                    if (
-                        row_total["discharge_nr"] == row_triggers["discharge_nr"]
-                        and "BGR" not in row_total["file_name"]
-                    ):
-                        if row_total["discharge_nr"] != numer_wyladowania:
-                            offset_zapisu = (
-                                row_total["utc_start_time"] - row_triggers["T1"]
-                            )
-                            off = offset_zapisu
-                            numer_wyladowania = row_total["discharge_nr"]
-                            callibrated_start_times[idx_df_total] = offset_zapisu
-                        else:
-                            callibrated_start_times[idx_df_total] = off
-            self.files_info["new_time"] = [0] * len(self.files_info)
-            idx = list(callibrated_start_times.keys())
-            offset = list(callibrated_start_times.values())
-            self.files_info["new_time"].loc[idx] = (
-                self.files_info["utc_start_time"].loc[idx]
-                - offset
-                + self.files_info["acquisition_time"] * 1e9
-            )
-            self.files_info["new_time"] = self.files_info["new_time"].astype("int64")
+                elif "BGR" in row_total["file_name"] and (t6 > utc_time):
+                    discharge_nr = discharge_nr_trigger
+                    break
 
-        calc_acquisition_time()
-        calc_start_utc()
-        check_if_between_triggers()
-        shift_to_T1()
+            if discharge_nr is not None:
+                dictionary[idx_df_total] = discharge_nr
+            else:
+                row_total["type_of_data"] = "trash"
+        if dictionary:
+            files_info_df["discharge_nr"].loc[
+                np.array(list(dictionary.keys()))
+            ] = np.array(list(dictionary.values()))
+            indexes_to_assign = files_info_df.index[
+                ~files_info_df.index.isin(dictionary)
+            ]
+            files_info_df["type_of_data"].loc[indexes_to_assign] = "trash"
+        else:
+            print(f"\n{date} - no discharges registered during the day!\n")
+
+        files_info_df["discharge_nr"] = files_info_df["discharge_nr"].astype(
+            {"discharge_nr": "int32"}, errors="ignore"
+        )
+
+    def _shift_to_T1(self, files_info_df, triggers_df):
+        calibrated_start_times = {}
+        discharge_nr = 0
+        save_time_offset = 0
+
+        for idx_df_total, row_total in files_info_df.iterrows():
+            for idx_df_triggers, row_triggers in triggers_df.iterrows():
+                if (
+                    row_total["discharge_nr"] == row_triggers["discharge_nr"]
+                    and "BGR" not in row_total["file_name"]
+                ):
+                    offset = row_total["utc_start_time"] - row_triggers["T1"]
+                    if row_total["discharge_nr"] != discharge_nr:
+                        save_time_offset = offset
+                        discharge_nr = row_total["discharge_nr"]
+                    calibrated_start_times[idx_df_total] = save_time_offset
+
+        files_info_df["new_time"] = [0] * len(files_info_df)
+        idx = list(calibrated_start_times.keys())
+        offset = list(calibrated_start_times.values())
+        files_info_df["new_time"].loc[idx] = (
+            files_info_df["utc_start_time"].loc[idx]
+            - offset
+            + files_info_df["acquisition_time"] * 1e9
+        )
+        files_info_df["new_time"] = files_info_df["new_time"].astype("int64")
 
     def save_file(self):
         path = self.fpm_object.discharge_nrs()
@@ -364,9 +332,7 @@ def get_exp_data_subdirs(element):
     """
     Retrieves all subdirectories in a given directory.
     """
-    path = (
-        pathlib.Path(__file__).parent.parent.resolve() / "data" / "exp_data" / element
-    )
+    path = Path(__file__).parent.parent.resolve() / "data" / "exp_data" / element
     sub_dirs = [f for f in path.iterdir() if f.is_dir() and f.name[0] != (".")]
 
     return natsort.os_sorted(sub_dirs)
@@ -377,9 +343,9 @@ if __name__ == "__main__":
     for element in elements:
         list_of_directories = get_exp_data_subdirs(element)
         for directory in list_of_directories:
-            if "20230117" in str(directory):
-                try:
-                    exp_ass = ExpAssignment(element, directory, savefile=True)
-                except ValueError:
-                    print(f" {directory} - Cannot process the data - continuing.")
-                    continue
+            # if "20230117" in str(directory):
+            try:
+                exp_ass = ExpAssignment(element, directory, savefile=True)
+            except ValueError:
+                print(f" {directory} - Cannot process the data - continuing.")
+                continue
