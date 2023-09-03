@@ -1,6 +1,8 @@
 import pandas as pd
 import pytest
 from file_reader import FilePathManager
+import triggers
+
 
 @pytest.fixture
 def get_trigger_files_paths():
@@ -24,6 +26,10 @@ def test_trigger_columns_in_files(get_trigger_files_paths):
         # TODO - zle warunki ponizej
         assert (T0 >= 0).all()
         assert (T1 >= 0).all()
+
+
+def test_converting_to_utc():
+    ...
 
 
 def test_sequent_rows_in_files(get_trigger_files_paths):
