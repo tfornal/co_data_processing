@@ -28,7 +28,7 @@ class Triggers:
 
         if self.triggers_df is None:
             self.year, self.month, self.day = self.convert_date(self.date)
-            self.beginning_of_the_day, self.end_of_the_day = self._convert_to_UTC()
+            self.beginning_of_the_day, self.end_of_the_day = self._convert_to_utc()
             self.url = self._get_url()
             self.triggers = self._get_triggers_utc()
             self.triggers_df = self._create_df()
@@ -54,7 +54,7 @@ class Triggers:
         )
         return year, month, day
 
-    def _convert_to_UTC(self):
+    def _convert_to_utc(self):
         """
         Converts the `date` passed as parameter to UTC timestamps for the start and end of the day.
 
@@ -65,7 +65,7 @@ class Triggers:
         """
 
         beginning_of_the_day = datetime(self.year, self.month, self.day, 0, 0, 0, 0)
-        finish_of_the_day = datetime(self.year, self.month, self.day, 23, 59, 59, 0)
+        end_of_the_day = datetime(self.year, self.month, self.day, 23, 59, 59, 0)
 
         beginning_of_the_day = (
             int(round(calendar.timegm(beginning_of_the_day.timetuple())))
@@ -74,8 +74,8 @@ class Triggers:
         )
 
         end_of_the_day = (
-            int(round(calendar.timegm(finish_of_the_day.timetuple()))) * 1_000_000_000
-            + finish_of_the_day.microsecond * 1_000
+            int(round(calendar.timegm(end_of_the_day.timetuple()))) * 1_000_000_000
+            + end_of_the_day.microsecond * 1_000
         )
 
         return beginning_of_the_day, end_of_the_day

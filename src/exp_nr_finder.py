@@ -17,7 +17,6 @@ from file_reader import FileInformationCollector, FilePathManager
 from triggers import Triggers
 
 pd.options.mode.chained_assignment = None
-breakpoint()
 
 class ExpAssignment:
     """This class performs the assignment of experiment numbers to files based on the UTC time they were created.
