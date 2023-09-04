@@ -46,7 +46,7 @@ class Triggers:
             print(f"{self.date} local Trigger file does not exist. Downloading...")
             return None
 
-    def convert_date(self, date: str) -> tuple(str):
+    def convert_date(self, date: str) -> tuple:
         year, month, day = (
             int(date[:4]),
             int(date[4:6]),
