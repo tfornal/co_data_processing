@@ -61,25 +61,28 @@ class Intensity:
         self.spectra = self.get_all_spectra()
         self.spectra_without_bgr, self.selected_time_stamps = self.calculate_intensity()
 
-        # data = self.spectra.to_numpy()[:, :-560].T
-        # # data = self.spectra_without_bgr.to_numpy()[:, :-560].T
+        def colorpams():
+            data = self.spectra.to_numpy()[:, :-560].T
+            # data = self.spectra_without_bgr.to_numpy()[:, :-560].T
 
-        # time = self.selected_time_stamps[::50]
-        # import matplotlib.pyplot as plt
+            time = self.selected_time_stamps[::50]
+            import matplotlib.pyplot as plt
 
-        # # Stworzenie colormapy
-        # plt.figure(figsize=(10, 8))
-        # plt.imshow(
-        #     data, cmap="jet", aspect="auto"
-        # )  # 'viridis' to przykładowa mapa kolorów
-        # plt.colorbar()  # Dodanie skali kolorów
-        # plt.xlabel("Piksele")
+            # Stworzenie colormapy
+            plt.figure(figsize=(10, 8))
+            plt.imshow(
+                data, cmap="jet", aspect="auto"
+            )  # 'viridis' to przykładowa mapa kolorów
+            plt.colorbar()  # Dodanie skali kolorów
+            plt.xlabel("Piksele")
 
-        # plt.ylabel("Ramki czasowe")
-        # plt.yticks(np.arange(len(time)), time)
-        # plt.title("Colormap z macierzy danych")
+            plt.ylabel("Ramki czasowe")
+            plt.yticks(np.arange(len(time)), time)
+            plt.title("Colormap z macierzy danych")
 
-        # plt.show()
+            plt.show()
+            test
+
         self.utc_time_stamps = self.convert_to_utc_time_stamps(
             self.utc_time_of_saved_file, self.selected_time_stamps
         )
