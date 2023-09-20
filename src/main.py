@@ -164,9 +164,9 @@ def main():
     elements_list = ["C"]  # , "O"]
     discharges_list = [i for i in range(1, 100)]
 
-    dates_list = ["20230117"]
+    dates_list = ["20230118"]
     elements_list = ["C", "O"]  # , "O"]  # , "O"]
-    discharges_list = [14]  # 20230117.050 rowniez kiepsko
+    discharges_list = [20]  # 20230117.050 rowniez kiepsko
 
     for date in dates_list:
         for discharge in discharges_list:
@@ -187,7 +187,7 @@ def main():
                                 time_interval,
                                 save_df=True,
                                 save_fig=True,
-                                plot=True,
+                                plot=False,
                             )
                         )
                 except FileNotFoundError:
@@ -198,10 +198,10 @@ def main():
             if len(bufor) >= 2:
                 parameters = (bufor, date, discharge)
                 plot_elements_comparison(
-                    *parameters, normalized=False, save_fig=True, plot=False
+                    *parameters, normalized=False, save_fig=True, plot=True
                 )
                 plot_elements_comparison(
-                    *parameters, normalized=True, save_fig=True, plot=False
+                    *parameters, normalized=True, save_fig=True, plot=True
                 )
 
 
