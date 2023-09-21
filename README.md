@@ -21,5 +21,7 @@ TODO:
 1. Remove BGR before the discharge;
 2. OOP ->  Procedural
 3. sprawic aby wybieranie przedzialu czasowego sprawialo ze wybiera odpowiednie pliki
-4. Tests
-5. (possibly) multiprocessing/threading
+4. Nasycenie sygnalu - informacja 
+5. Tests
+6. (possibly) multiprocessing/threading
+7. Odczyt zapisanych plikow z informacjami i upload to archive; 
