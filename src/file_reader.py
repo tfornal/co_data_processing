@@ -1,3 +1,4 @@
+from __future__ import annotations
 import pathlib
 import pandas as pd
 import natsort
@@ -8,39 +9,38 @@ class FilePathManager:
     to source code."""
 
     def __init__(self, element=None, date=None):
-        self.element = element
-        self.date = date
-        self.stem_path = self.main_path()
+        self._element = element
+        self._date = date
 
-    def main_path(self):
-        stem_path = pathlib.Path(__file__).parent.parent.resolve() / "data"
-        return stem_path
+    @property
+    def element(self) -> str:
+        return self._element
 
-    def discharge_nrs(self):
-        path = self.stem_path / "discharge_numbers" / self.element
-        return path
+    @property
+    def date(self) -> str:
+        return self._date
 
-    def experimental_data(self):
-        path = self.stem_path / "exp_data" / self.element / self.date
-        return path
+    def _get_path(self, *parts):
+        main_path = stem_path = pathlib.Path(__file__).parent.parent.resolve() / "data"
+        return main_path.joinpath(*parts)
 
-    def experimental_data_parameters(self):
-        path = self.stem_path / "exp_data_parameters"
-        return path
+    def get_exp_numbers_directory(self):
+        return self._get_path("discharge_numbers", self.element)
 
-    def program_triggers(self):
-        path = (
-            pathlib.Path(__file__).parent.parent.resolve() / "data" / "program_triggers"
-        )
-        return path
+    def get_exp_data_directory(self):
+        return self._get_path("exp_data", self.element, self.date)
 
-    def time_evolutions(self):
-        path = self.stem_path / "time_evolutions" / self.element / self.date
-        return path
+    def get_exp_data_params_directory(self):
+        return self._get_path("exp_data_parameters")
 
-    def images(self):
-        path = self.stem_path / self.time_evolutions() / "img"
-        return path
+    def get_program_triggers_directory(self):
+        return self._get_path("program_triggers")
+
+    def get_time_evolutions_directory(self):
+        return self._get_path("time_evolutions", self.element, self.date)
+
+    def get_images_directory(self):
+        return self._get_path("time_evolutions", self.element, self.date, "img")
 
 
 class FileInformationCollector:
@@ -81,16 +81,27 @@ class FileListExtractor:
     related to the given experimental discharge number."""
 
     def __init__(self, element, date, discharge_nr):
-        self.element = element
-        self.date = date
-        self.discharge_nr = discharge_nr
+        self._element = element
+        self._date = date
+        self._discharge_nr = discharge_nr
 
         self.fp = FilePathManager(self.element, self.date)
-        self.discharge_nr_file_path = self.fp.discharge_nrs()
-        self.exp_data_file_path = self.fp.experimental_data()
-
+        self.discharge_nr_file_path = self.fp.get_exp_numbers_directory()
+        self.exp_data_file_path = self.fp.get_exp_data_directory()
         self.all_file_list = self.grab_all_file_list()
         self.selected_file_names = self.select_file_names()
+
+    @property
+    def element(self) -> str:
+        return self._element
+
+    @property
+    def date(self) -> str:
+        return self._date
+
+    @property
+    def discharge_nr(self) -> str:
+        return self._discharge_nr
 
     def grab_all_file_list(self):
         return list(self.exp_data_file_path.glob("**/*"))
@@ -156,7 +167,7 @@ class DischargeDataExtractor:
         self.discharge_data = self.get_discharge_parameters()
 
     def get_specific_file_path(self):
-        return FilePathManager(self.element, self.date).discharge_nrs()
+        return FilePathManager(self.element, self.date).get_exp_numbers_directory()
 
     def get_discharge_parameters(self):
         with open(
