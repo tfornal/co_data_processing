@@ -8,6 +8,8 @@ class FilePathManager:
     """Retrieves paths to different folders containing input/output files relative
     to source code."""
 
+    main_path = pathlib.Path(__file__).parent.parent.resolve() / "data"
+
     def __init__(self, element=None, date=None):
         self._element = element
         self._date = date
@@ -20,26 +22,26 @@ class FilePathManager:
     def date(self) -> str:
         return self._date
 
-    def _get_path(self, *parts):
-        main_path = stem_path = pathlib.Path(__file__).parent.parent.resolve() / "data"
-        return main_path.joinpath(*parts)
+    @classmethod
+    def _get_path(cls, *parts):
+        return cls.main_path.joinpath(*parts)
 
-    def get_exp_numbers_directory(self):
+    def get_directory_for_exp_numbers(self):
         return self._get_path("discharge_numbers", self.element)
 
-    def get_exp_data_directory(self):
+    def get_directory_for_exp_data(self):
         return self._get_path("exp_data", self.element, self.date)
 
-    def get_exp_data_params_directory(self):
+    def get_directory_for_exp_data_parameters(self):
         return self._get_path("exp_data_parameters")
 
-    def get_program_triggers_directory(self):
+    def get_directory_for_program_triggers(self):
         return self._get_path("program_triggers")
 
-    def get_time_evolutions_directory(self):
+    def get_directory_for_time_evolutions(self):
         return self._get_path("time_evolutions", self.element, self.date)
 
-    def get_images_directory(self):
+    def get_directory_for_images(self):
         return self._get_path("time_evolutions", self.element, self.date, "img")
 
 
@@ -86,8 +88,8 @@ class FileListExtractor:
         self._discharge_nr = discharge_nr
 
         self.fp = FilePathManager(self.element, self.date)
-        self.discharge_nr_file_path = self.fp.get_exp_numbers_directory()
-        self.exp_data_file_path = self.fp.get_exp_data_directory()
+        self.discharge_nr_file_path = self.fp.get_directory_for_exp_numbers()
+        self.exp_data_file_path = self.fp.get_directory_for_exp_data()
         self.all_file_list = self.grab_all_file_list()
         self.selected_file_names = self.select_file_names()
 
@@ -167,7 +169,7 @@ class DischargeDataExtractor:
         self.discharge_data = self.get_discharge_parameters()
 
     def get_specific_file_path(self):
-        return FilePathManager(self.element, self.date).get_exp_numbers_directory()
+        return FilePathManager(self.element, self.date).get_directory_for_exp_numbers()
 
     def get_discharge_parameters(self):
         with open(
