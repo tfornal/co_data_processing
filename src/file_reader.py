@@ -59,15 +59,15 @@ class BackgroundFilesSelector(FileListExtractor):
     """Grabs all file names containing background data
     related to the given experimental discharge number."""
 
-    def _get_all_file_list(self, element, date):
-        return list(self.get_directory_for_exp_data(element, date).glob("**/*"))
-
     def get_bgr_file_list(self, element, date, exp_nr):
+        path = self.get_directory_for_exp_data(element, date)
+        file_list = self.grab_all_file_list(path)
+
         bgr_files = [
-            x
-            for x in self._get_all_file_list(element, date)
-            if "BGR" in x.stem
-            and x.stem in self.select_file_names(element, date, exp_nr)
+            file
+            for file in file_list
+            if "BGR" in file.stem
+            and file.stem in self.select_file_names(element, date, exp_nr)
         ]
         return bgr_files
 
@@ -79,6 +79,7 @@ class ExperimentalFilesSelector(FileListExtractor):
     def grab_discharge_files(self, element, date, exp_nr):
         path = self.get_directory_for_exp_data(element, date)
         file_list = self.grab_all_file_list(path)
+
         discharge_files = [
             file
             for file in file_list
