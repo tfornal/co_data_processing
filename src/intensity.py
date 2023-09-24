@@ -13,7 +13,7 @@ from file_reader import (
     ExperimentalFilesSelector,
     BackgroundFilesSelector,
 )
-from utc_converter import get_time_from_UTC
+# from utc_converter import get_time_from_UTC
 
 
 def timer(function):
@@ -36,15 +36,15 @@ def get_intensity(spectra_without_bgr, integral_range):
     return intensity
 
 
-def _get_utc_time(exp_info_df):
+def get_utc_time(exp_info_df):
     return int(exp_info_df["new_time"].iloc[0])
 
 
-def _get_frequency(exp_info_df):
+def get_frequency(exp_info_df):
     return int(exp_info_df["frequency"].iloc[0])
 
 
-def _get_bgr_files(element, date, exp_nr, exp_info_df):
+def get_bgr_files(element, date, exp_nr, exp_info_df):
     ef = BackgroundFilesSelector()
     return ef.get_bgr_file_list(element, date, exp_nr)
 
@@ -107,7 +107,7 @@ def get_det_size(binary_file):
 
 def validate_time_duration(cls):
     ### TODO
-    pass
+    ...
 
 
 def generate_time_stamps(time_interval, dt):
@@ -116,7 +116,7 @@ def generate_time_stamps(time_interval, dt):
     return selected_time_stamps
 
 
-def get_BGR(bgr_file_name):
+def get_bgr(bgr_file_name):
     with open(bgr_file_name, "rb") as binary_file:
         _, cols_number = get_det_size(binary_file)
         spec_in_time = pd.DataFrame()
@@ -164,7 +164,7 @@ def calculate_intensity(spectra, bgr_files, time_interval, dt):
     ### takes last recorded noise signal before the discharge
     # bgr_files = Files(element, date, discharge).bgr_files
     try:
-        _, bgr_spec = get_BGR(bgr_files[-1])
+        _, bgr_spec = get_bgr(bgr_files[-1])
 
         spectra_without_bgr = spectra.iloc[:, :].sub(bgr_spec, axis=0)
         selected_time_stamps = generate_time_stamps(time_interval, dt)[
@@ -264,7 +264,7 @@ def plotter(element, date, df, exp_nr, file_name, plot, save_fig):
     plt.close()
 
 
-def run(
+def run_intensity_calculations(
     element,
     date,
     exp_nr,
@@ -274,17 +274,15 @@ def run(
     save_fig=True,
     plot=True,
 ):
-    file_path_manager = FilePathManager()
-
     exp_info_df = ExperimentalDataExtractor()
     exp_info_df = exp_info_df.get_discharge_parameters(
         element,
         date,
         file_name,
     )
-    utc_time_of_saved_file = _get_utc_time(exp_info_df)
-    frequency = _get_frequency(exp_info_df)
-    bgr_files = _get_bgr_files(
+    utc_time_of_saved_file = get_utc_time(exp_info_df)
+    frequency = get_frequency(exp_info_df)
+    bgr_files = get_bgr_files(
         element,
         date,
         exp_nr,
@@ -336,10 +334,10 @@ def run(
 
 
 def main():
-    time_interval = [0, 3]
+    time_interval = [0, 100]
     ### sprawic aby wybieranie przedzialu czasowego sprawialo ze wybiera odpowiednie pliki
 
-    dates_list = ["20230118"]
+    dates_list = ["20230117"]
     elements_list = ["C"]
     discharges_list = [20]  # 20230117.050 rowniez kiepsko
 
@@ -352,7 +350,7 @@ def main():
                     f = ExperimentalFilesSelector()
                     discharge_files = f.grab_discharge_files(element, date, discharge)
                     for file_name in discharge_files:
-                        run(
+                        run_intensity_calculations(
                             element,
                             date,
                             discharge,

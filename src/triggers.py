@@ -12,7 +12,7 @@ class Triggers:
 
     ARCHIVE_PROGINFO = "http://archive-webapi.ipp-hgw.mpg.de/programs.json?from="
 
-    def __init__(self, date, savefile=True):
+    def __init__(self, date: str, savefile=True):
         """Initialize the instance of the class.
 
         Parameters
@@ -23,7 +23,7 @@ class Triggers:
             Whether the processed data should be saved as a csv file, by default False.
         """
         self.date = str(date)
-        self.trigger_path = FilePathManager(None, self.date).program_triggers()
+        self.trigger_path = FilePathManager().get_directory_for_program_triggers()
         self.triggers_df = self.read_from_file()
 
         if self.triggers_df is None:

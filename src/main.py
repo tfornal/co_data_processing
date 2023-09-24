@@ -9,12 +9,10 @@ import pandas as pd
 
 from file_reader import (
     FilePathManager,
-    DischargeFilesSelector,
-    DischargeDataExtractor,
-    BackgroundFilesSelector,
+    ExperimentalFilesSelector,
 )
 from utc_converter import get_time_from_UTC
-from intensity import Intensity
+from intensity import run_intensity_calculations
 
 
 def generate_dates_list(start_date_str, end_date_str):
@@ -157,7 +155,7 @@ def save_or_show_plot(instance, date, discharge_nr, normalized, save_fig, plot):
 
 
 def main():
-    time_interval = [0, 500]
+    time_interval = [0, 3]
     ### sprawic aby wybieranie przedzialu czasowego sprawialo ze wybiera odpowiednie pliki
 
     dates_list = generate_dates_list("20230101", "20230331")
@@ -165,7 +163,7 @@ def main():
     discharges_list = [i for i in range(1, 100)]
 
     dates_list = ["20230118"]
-    elements_list = ["C", "O"]  # , "O"]  # , "O"]
+    # elements_list = ["C", "O"]  # , "O"]  # , "O"]
     discharges_list = [20]  # 20230117.050 rowniez kiepsko
 
     for date in dates_list:
@@ -174,12 +172,11 @@ def main():
 
             for element in elements_list:
                 try:
-                    f = DischargeFilesSelector(element, date, discharge)
-                    discharge_files = f.discharge_files
-
+                    f = ExperimentalFilesSelector()
+                    discharge_files = f.grab_discharge_files(element, date, discharge)
                     for file_name in discharge_files:
                         bufor.append(
-                            Intensity(
+                            run_intensity_calculations(
                                 element,
                                 date,
                                 discharge,
@@ -187,7 +184,7 @@ def main():
                                 time_interval,
                                 save_df=True,
                                 save_fig=True,
-                                plot=False,
+                                plot=True,
                             )
                         )
                 except FileNotFoundError:
@@ -198,10 +195,10 @@ def main():
             if len(bufor) >= 2:
                 parameters = (bufor, date, discharge)
                 plot_elements_comparison(
-                    *parameters, normalized=False, save_fig=True, plot=True
+                    *parameters, normalized=False, save_fig=True, plot=False
                 )
                 plot_elements_comparison(
-                    *parameters, normalized=True, save_fig=True, plot=True
+                    *parameters, normalized=True, save_fig=True, plot=False
                 )
 
 

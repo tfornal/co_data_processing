@@ -18,6 +18,7 @@ from triggers import Triggers
 
 pd.options.mode.chained_assignment = None
 
+
 class ExpAssignment:
     """This class performs the assignment of experiment numbers to files based on the UTC time they were created.
 
@@ -34,10 +35,12 @@ class ExpAssignment:
         self.element = element
         self.date = path.stem
 
-        self.fpm_object = FilePathManager(element, None)
-        self.fobject = FileInformationCollector(path)
-        self.fname_list = self._get_file_list()
-        self.file_sizes = self._get_file_sizes()
+        self.fpm_object = FilePathManager()
+        self.fobject = FileInformationCollector()
+
+        self.fname_list = self.fobject.get_files_names(path)
+        self.file_sizes = self.fobject.get_files_sizes(path)
+
         self.triggers_df = self._get_triggers(self.date)
         self.make_df_with_files_info(self.element, savefile)
 
@@ -54,10 +57,10 @@ class ExpAssignment:
             self.save_file()
 
     def _get_file_list(self):
-        return self.fobject.file_list
+        return self.fobject.get_file_list()
 
     def _get_file_sizes(self):
-        return self.fobject.file_sizes
+        return self.fobject.get_file_sizes()
 
     def _get_triggers(self, date):
         t = Triggers(date)
@@ -181,8 +184,8 @@ class ExpAssignment:
         return nrows
 
     def get_pulse_length(self, element, date):
-        path_manager = FilePathManager(element, date)
-        path = path_manager.experimental_data()
+        path_manager = FilePathManager()
+        path = path_manager.get_directory_for_exp_data(element, date)
 
         file_paths = list(path.glob("**/*"))
         file_list = [x.stem for x in file_paths if x.is_file()]
@@ -196,7 +199,7 @@ class ExpAssignment:
         return file_list, dlugosci
 
     def _get_frequency(self, element, files_info_df):
-        path_exp_data_params = self.fpm_object.experimental_data_parameters()
+        path_exp_data_params = self.fpm_object.get_directory_for_exp_data_parameters()
         setup_notes = path_exp_data_params / f"{element}-camera_setups.csv"
         with open(setup_notes, "r") as data:
             camera_setups = pd.read_csv(
@@ -315,7 +318,7 @@ class ExpAssignment:
         files_info_df["new_time"] = files_info_df["new_time"].astype("int64")
 
     def save_file(self):
-        path = self.fpm_object.discharge_nrs()
+        path = self.fpm_object.get_directory_for_exp_numbers(self.element)
         path.mkdir(parents=True, exist_ok=True)
         self.files_info.to_csv(path / f"{self.element}-{self.date}.csv", sep="\t")
 
