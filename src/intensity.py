@@ -13,6 +13,7 @@ from file_reader import (
     ExperimentalFilesSelector,
     BackgroundFilesSelector,
 )
+
 # from utc_converter import get_time_from_UTC
 
 
@@ -336,7 +337,6 @@ def run_intensity_calculations(
 def main():
     time_interval = [0, 100]
     ### sprawic aby wybieranie przedzialu czasowego sprawialo ze wybiera odpowiednie pliki
-
     dates_list = ["20230117"]
     elements_list = ["C"]
     discharges_list = [20]  # 20230117.050 rowniez kiepsko
