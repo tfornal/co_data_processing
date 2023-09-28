@@ -162,7 +162,7 @@ def main():
     elements_list = ["C"]  # , "O"]
     discharges_list = [i for i in range(1, 100)]
 
-    dates_list = ["20230118"]
+    dates_list = ["20221214"]
     # elements_list = ["C", "O"]  # , "O"]  # , "O"]
     discharges_list = [20]  # 20230117.050 rowniez kiepsko
 

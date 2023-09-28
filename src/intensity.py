@@ -335,6 +335,9 @@ def run_intensity_calculations(
 
 
 def main():
+
+    # TODO - checking whether the trigger informatin, assignment files (csv???) and discharge files do exists.
+    # if not - raise warning! Or error. 
     time_interval = [0, 100]
     ### sprawic aby wybieranie przedzialu czasowego sprawialo ze wybiera odpowiednie pliki
     dates_list = ["20230117"]
