@@ -14,8 +14,7 @@ from file_reader import (
     BackgroundFilesSelector,
 )
 
-# from utc_converter import get_time_from_UTC
-
+from utc_converter import get_time_from_UTC
 
 def timer(function):
     @wraps(function)
@@ -28,12 +27,24 @@ def timer(function):
 
     return wrapper
 
-
 def get_intensity(spectra_without_bgr, integral_range):
     intensity = [
         integrate_spectrum(np.array(spectra_without_bgr[i]), integral_range)
         for i in spectra_without_bgr
     ]
+    plt.imshow(spectra_without_bgr, cmap = "viridis")
+    plt.colorbar()
+
+    # Show the plot
+    plt.show()
+    # for i in spectra_without_bgr:
+    #     plt.plot(spectra_without_bgr[i])
+    #     intensity = integrate_spectrum(np.array(spectra_without_bgr[i]), integral_range)
+    #     to_title = "{:.2e}".format(intensity)
+    #     plt.title(f"{to_title}")
+    #     plt.savefig(f"{i}.png")
+    #     plt.close()
+        
     return intensity
 
 
@@ -60,38 +71,40 @@ def select_integral_range(element):
     integral_range = ranges_dict[f"{element}"]
     return integral_range
 
-
 def convert_frequency_to_dt(frequency):
     return 1 / frequency
 
 
-def get_pixel_intens(binary_file, row, column):
+def get_pixel_intens(binary_file_content, row, column):
     shift = 4096 + (row - 1) * 3072 + (column - 1) * 3
-    binary_file.seek(shift)
-    bytes_ = binary_file.read(3)
+    binary_file_content.seek(shift)
+    bytes_ = binary_file_content.read(3)
     return int.from_bytes(bytes_, "little")
 
 
-def get_spectrum(binary_file, cols_number, row):
+def get_spectrum(binary_file_content, cols_number, row):
     return list(
         map(
-            lambda column: get_pixel_intens(binary_file, row, column + 1),
+            lambda column: get_pixel_intens(binary_file_content, row, column + 1),
             range(cols_number),
         )
     )
 
 
 def integrate_spectrum(spectrum, spectrum_range):
+    ## TODO - background not removed -> procedure for saturation finding; 
     # Extract the specified range of the spectrum
     selected_spectrum = spectrum[spectrum_range[0] : spectrum_range[1] + 1]
     # Calculate the background level as the minimum value of the first and last data points in the range
     background = min(selected_spectrum[0], selected_spectrum[-1])
+    # background = 0
     # Subtract the background level from the spectrum (removing the background)
     spectrum_without_background = selected_spectrum - background
     # Create an array of pixel indices corresponding to the selected spectrum range
     pixels = np.arange(spectrum_range[0], spectrum_range[1] + 1)
     # Integrate the spectrum using Simpson's rule
     integral = integrate.simps(spectrum_without_background, pixels)
+    
     return integral
 
 
@@ -118,10 +131,10 @@ def generate_time_stamps(time_interval, dt):
 
 
 def get_bgr(bgr_file_name):
-    with open(bgr_file_name, "rb") as binary_file:
-        _, cols_number = get_det_size(binary_file)
+    with open(bgr_file_name, "rb") as binary_file_content:
+        _, cols_number = get_det_size(binary_file_content)
         spec_in_time = pd.DataFrame()
-        spectrum = get_spectrum(binary_file, cols_number, row=1)
+        spectrum = get_spectrum(binary_file_content, cols_number, row=1)
         spec_header = f"{bgr_file_name.stem}"
         spec_in_time[spec_header] = spectrum
         col_name = spec_header
@@ -338,9 +351,9 @@ def main():
 
     # TODO - checking whether the trigger informatin, assignment files (csv???) and discharge files do exists.
     # if not - raise warning! Or error. 
-    time_interval = [0, 100]
+    time_interval = [0, 1222]
     ### sprawic aby wybieranie przedzialu czasowego sprawialo ze wybiera odpowiednie pliki
-    dates_list = ["20230117"]
+    dates_list = ["20230118"]
     elements_list = ["C"]
     discharges_list = [20]  # 20230117.050 rowniez kiepsko
 
