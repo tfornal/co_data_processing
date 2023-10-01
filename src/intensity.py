@@ -32,19 +32,6 @@ def get_intensity(spectra_without_bgr, integral_range):
         integrate_spectrum(np.array(spectra_without_bgr[i]), integral_range)
         for i in spectra_without_bgr
     ]
-    plt.imshow(spectra_without_bgr, cmap = "viridis")
-    plt.colorbar()
-
-    # Show the plot
-    plt.show()
-    # for i in spectra_without_bgr:
-    #     plt.plot(spectra_without_bgr[i])
-    #     intensity = integrate_spectrum(np.array(spectra_without_bgr[i]), integral_range)
-    #     to_title = "{:.2e}".format(intensity)
-    #     plt.title(f"{to_title}")
-    #     plt.savefig(f"{i}.png")
-    #     plt.close()
-        
     return intensity
 
 
