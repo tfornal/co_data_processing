@@ -16,8 +16,8 @@ from file_reader import (
 
 from utc_converter import get_time_from_UTC
 
-MAX_PIXEL_COUNTS = 241_000
-
+MAX_PIXEL_CAPACITY = 241_000
+SATURATION_THRESHOLD = 1 # %
 
 def timer(function):
     @wraps(function)
@@ -38,7 +38,7 @@ def get_intensity(spectra_without_bgr, integral_range):
     return intensity
 
 def validate_detector_saturation(spectra_without_bgr):
-    saturation = [check_if_saturated(np.array(spectra_without_bgr[i]))
+    saturation = [is_saturated(np.array(spectra_without_bgr[i]))
     for i in spectra_without_bgr]
     return saturation
 
@@ -84,11 +84,11 @@ def get_spectrum(binary_file_content, cols_number, row):
         )
     )
 
-def check_if_saturated(spectrum):
-    is_true = spectrum > MAX_PIXEL_COUNTS
-    ile_true = np.count_nonzero(is_true)
-    percentage = ile_true/len(is_true) * 100
-    if percentage > 5:
+def is_saturated(spectrum):
+    saturation_status_list = spectrum > MAX_PIXEL_CAPACITY
+    saturated_pixel_count = np.count_nonzero(saturation_status_list)
+    percentage = saturated_pixel_count/len(saturation_status_list) * 100
+    if percentage > SATURATION_THRESHOLD:
         return True
     return False
 
@@ -370,19 +370,16 @@ def run_intensity_calculations(
 
 
 def main():
-
     # TODO - checking whether the trigger informatin, assignment files (csv???) and discharge files do exists.
     # if not - raise warning! Or error. 
     time_interval = [0, 120.85]
     ### sprawic aby wybieranie przedzialu czasowego sprawialo ze wybiera odpowiednie pliki
     dates_list = ["20230118"]
     elements_list = ["C"]
-    discharges_list = [20]  # 20230117.050 rowniez kiepsko
-
+    discharges_list = [7]  # 20230117.050 rowniez kiepsko
+    # jesli discharge to 0 to wyrzuca blad - TODO
     for date in dates_list:
         for discharge in discharges_list:
-            bufor = []
-
             for element in elements_list:
                 try:
                     f = ExperimentalFilesSelector()
