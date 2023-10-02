@@ -16,6 +16,9 @@ from file_reader import (
 
 from utc_converter import get_time_from_UTC
 
+MAX_PIXEL_COUNTS = 241_000
+
+
 def timer(function):
     @wraps(function)
     def wrapper(*args, **kwargs):
@@ -34,6 +37,10 @@ def get_intensity(spectra_without_bgr, integral_range):
     ]
     return intensity
 
+def validate_detector_saturation(spectra_without_bgr):
+    saturation = [check_if_saturated(np.array(spectra_without_bgr[i]))
+    for i in spectra_without_bgr]
+    return saturation
 
 def get_utc_time(exp_info_df):
     return int(exp_info_df["new_time"].iloc[0])
@@ -77,18 +84,28 @@ def get_spectrum(binary_file_content, cols_number, row):
         )
     )
 
+def check_if_saturated(spectrum):
+    is_true = spectrum > MAX_PIXEL_COUNTS
+    ile_true = np.count_nonzero(is_true)
+    percentage = ile_true/len(is_true) * 100
+    if percentage > 5:
+        return True
+    return False
+
 
 def integrate_spectrum(spectrum, spectrum_range):
     ## TODO - background not removed -> procedure for saturation finding; 
     # Extract the specified range of the spectrum
-    selected_spectrum = spectrum[spectrum_range[0] : spectrum_range[1] + 1]
+    start_index = spectrum_range[0]  
+    end_index = spectrum_range[1]
+
+    selected_spectrum = spectrum[start_index : end_index + 1]
     # Calculate the background level as the minimum value of the first and last data points in the range
     background = min(selected_spectrum[0], selected_spectrum[-1])
-    # background = 0
     # Subtract the background level from the spectrum (removing the background)
     spectrum_without_background = selected_spectrum - background
     # Create an array of pixel indices corresponding to the selected spectrum range
-    pixels = np.arange(spectrum_range[0], spectrum_range[1] + 1)
+    pixels = np.arange(start_index, end_index + 1)
     # Integrate the spectrum using Simpson's rule
     integral = integrate.simps(spectrum_without_background, pixels)
     
@@ -187,6 +204,7 @@ def make_df(
     exp_nr,
     selected_time_stamps,
     intensity,
+    saturation,
     utc_time_stamps,
     file_name,
     save_df=True,
@@ -196,8 +214,8 @@ def make_df(
     df[f"QSO_{element}_{date}.{exp_nr}"] = intensity
     df[f"QSO_{element}_{date}.{exp_nr}"] = df[f"QSO_{element}_{date}.{exp_nr}"].round(1)
     df["utc_timestamps"] = utc_time_stamps
-    df = df.iloc[:-1]
-    ### usuwa ostatnia ramke w czasie 0s -> w celu usuniecia niefizycznych wartosci
+    df["saturation"] = saturation
+    df = df.iloc[:-1] # excludes last timeframe to remove unphysical data 
 
     time = list(map(get_time_from_UTC, df["utc_timestamps"]))
 
@@ -231,6 +249,18 @@ def plotter(element, date, df, exp_nr, file_name, plot, save_fig):
         df[f"QSO_{element}_{date}.{exp_nr}"],
         alpha=0,
     )
+
+    #     # Tworzenie wykresu liniowego dla 'discharge_time'
+    # plt.plot(df['discharge_time'], df['saturation'])
+
+    # Ustalenie, które wartości mają być oznaczone jako True
+
+    # Dodanie pionowych linii na wykresie
+    # ax3.vlines(x=true_values, ymin=0, ymax=6E7, colors='r', linestyles='dashed')
+    max_intensity = df[f"QSO_{element}_{date}.{exp_nr}"].max()
+    ax2.fill_between(np.asarray(df["discharge_time"], float), 0, max_intensity, where=df["saturation"], color='red', alpha=0.4)
+
+
     ax2.plot(
         np.asarray(df["discharge_time"], float),
         df[f"QSO_{element}_{date}.{exp_nr}"],
@@ -313,12 +343,17 @@ def run_intensity_calculations(
         spectra_without_bgr,
         integral_range,
     )
+    saturation = validate_detector_saturation(spectra,
+    )
+
+
     df = make_df(
         element,
         date,
         exp_nr,
         selected_time_stamps,
         intensity,
+        saturation,
         utc_time_stamps,
         file_name,
         save_df,
@@ -338,7 +373,7 @@ def main():
 
     # TODO - checking whether the trigger informatin, assignment files (csv???) and discharge files do exists.
     # if not - raise warning! Or error. 
-    time_interval = [0, 1222]
+    time_interval = [0, 120.85]
     ### sprawic aby wybieranie przedzialu czasowego sprawialo ze wybiera odpowiednie pliki
     dates_list = ["20230118"]
     elements_list = ["C"]
