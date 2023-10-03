@@ -25,7 +25,7 @@ class Triggers:
         self.date = str(date)
         self.trigger_path = FilePathManager().get_directory_for_program_triggers()
         self.triggers_df = self.read_from_file()
-
+        breakpoint()
         if self.triggers_df is None:
             self.year, self.month, self.day = self.convert_date(self.date)
             self.beginning_of_the_day, self.end_of_the_day = self._convert_to_utc()
@@ -53,6 +53,16 @@ class Triggers:
             int(date[6:]),
         )
         return year, month, day
+
+    # TODO  -> alternatywna wersja ponizej; 
+    
+    # def convert_date(date_str: str) -> tuple:
+    #     try:
+    #         date_obj = datetime.strptime(date_str, "%Y%m%d")
+    #         year, month, day = date_obj.year, date_obj.month, date_obj.day
+    #         return year, month, day
+    #     except ValueError:
+    #         raise ValueError("Niepoprawny format daty. Oczekiwany format to YYYYMMDD.")
 
     def _convert_to_utc(self):
         """
