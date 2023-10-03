@@ -26,6 +26,7 @@ sdist/
 var/
 wheels/
 data/
+/data/program_triggers/
 
 share/python-wheels/
 *.egg-info/
