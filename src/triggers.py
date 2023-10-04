@@ -52,7 +52,7 @@ class TriggersFromHTTP:
         #     self.save_file()
 
     @classmethod
-    def _convert_date(cls, date: str) -> tuple:
+    def _convert_date_to_tuple(cls, date: str) -> tuple:
         try:
             date_obj = datetime.strptime(date, "%Y%m%d")
             year, month, day = date_obj.year, date_obj.month, date_obj.day
@@ -61,19 +61,20 @@ class TriggersFromHTTP:
             raise ValueError("Niepoprawny format daty. Oczekiwany format to YYYYMMDD.")
     
     @classmethod
-    def _compute_day_start_ns(self, converted_date):
-        start_of_the_day = datetime(converted_date*, 0, 0, 0, 0)
-
+    def _calculate_day_start_ns(self, converted_date_tuple):
+        year, month, date = converted_date_tuple
+        start_of_the_day = datetime(year, month, date, 0, 0, 0, 0)
         start_time_in_ns = (
             int(round(calendar.timegm(start_of_the_day.timetuple())))
             * 1_000_000_000
             + start_of_the_day.microsecond * 1_000
         )  
         return start_time_in_ns
-    
+
     @classmethod 
-    def _compute_day_end_ns(self, converted_date):
-        end_of_the_day = datetime(converted_date*, 23, 59, 59, 0)
+    def _calculate_day_end_ns(self, converted_date_tuple: tuple) -> int:
+        year, month, date = converted_date_tuple
+        end_of_the_day = datetime(year, month, date, 23, 59, 59, 0)
         end_time_in_ns = (
             int(round(calendar.timegm(end_of_the_day.timetuple())))
             * 1_000_000_000
@@ -81,10 +82,13 @@ class TriggersFromHTTP:
         )  
         return end_time_in_ns
 
-    def _grab_datetime_in_ns(self, converted_date):
-        day_start_ns = compute_day_start_ns(converted_date)
-        day_end_ns = compute_day_end_ns(converted_date)
+
+    def convert_date_to_ns_range(self, date):
+        converted_date_tuple = self._convert_date_to_tuple(date)
+        day_start_ns = self._calculate_day_start_ns(converted_date_tuple)
+        day_end_ns = self._calculate_day_end_ns(converted_date_tuple)
         return day_start_ns, day_end_ns
+
 
     def _get_url(self, timestamps_in_ns: tuple) -> str:
         """Returns the URL for accessing triggers data for the `date` passed as parameter."""
@@ -165,6 +169,6 @@ class Triggers:
 if __name__ == "__main__":
     date = "20230323"
     # triggers_df = TriggersFromFile().read_from_file(date)
-    triggers_df = TriggersFromHTTP()
+    triggers_df = TriggersFromHTTP().convert_date_to_ns_range(date)
     print(triggers_df)
     # Triggers()
