@@ -31,8 +31,9 @@ def generate_dates_list(start_date_str, end_date_str):
 
 
 def get_triggers(date, discharge_nr):
-    fpm = FilePathManager(None, date).program_triggers()
-    return fpm
+    fpm = FilePathManager()
+    pt = fpm.get_directory_for_program_triggers()
+    return pt
 
 
 def plot_elements_comparison(bufor, date, discharge_nr, normalized, save_fig, plot):
@@ -40,17 +41,15 @@ def plot_elements_comparison(bufor, date, discharge_nr, normalized, save_fig, pl
     ax2 = ax1.twiny()
     time = []
     for idx, instance in enumerate(bufor):
-        element = instance.element
-        df = instance.df
+        element, df = instance
         time.append(len(df))
         color = "blue" if element == "C" else "red"
         plot_single_element(
             ax1, ax2, df, element, date, discharge_nr, normalized, color
         )
-
     time = max(time)
     plot_triggers(ax1, ax2, time, date, discharge_nr)
-    labels = [instance.element for instance in bufor]
+    labels = [element for instance in bufor]
     legend = ax2.legend(labels)
     for line in legend.get_lines():
         line.set_linewidth(1.5)
@@ -135,36 +134,36 @@ def save_or_show_plot(instance, date, discharge_nr, normalized, save_fig, plot):
         return None
 
     image_type = "normalized" if normalized else "original"
-    parent_path = instance.file_path_manager.images().parent.parent.parent
-    path = parent_path / "_comparison" / date / image_type
-    path.mkdir(parents=True, exist_ok=True)
+    # parent_path = instance.file_path_manager.images().parent.parent.parent
+    # path = parent_path / "_comparison" / date / image_type
+    # path.mkdir(parents=True, exist_ok=True)
 
-    filename = (
-        f"QSO_comparison_norm_{date}.{discharge_nr:03}.png"
-        if normalized
-        else f"QSO_comparison_{date}.{discharge_nr:03}.png"
-    )
+    # filename = (
+    #     f"QSO_comparison_norm_{date}.{discharge_nr:03}.png"
+    #     if normalized
+    #     else f"QSO_comparison_{date}.{discharge_nr:03}.png"
+    # )
 
-    if save_fig:
-        plt.savefig(path / filename, dpi=200)
-        print(
-            f"QSO_comparison_{image_type}_{date}.{discharge_nr:03} - intensity evolution saved!"
-        )
+    # if save_fig:
+    #     plt.savefig(path / filename, dpi=200)
+    #     print(
+    #         f"QSO_comparison_{image_type}_{date}.{discharge_nr:03} - intensity evolution saved!"
+    #     )
     if plot:
         plt.show()
 
 
 def main():
-    time_interval = [0, 3]
+    time_interval = [0, 1000] # mapuje po WSZYSTKICH plikach do 110 a nie calosci wyladowania - TODO
     ### sprawic aby wybieranie przedzialu czasowego sprawialo ze wybiera odpowiednie pliki
 
     dates_list = generate_dates_list("20230101", "20230331")
     elements_list = ["C"]  # , "O"]
     discharges_list = [i for i in range(1, 100)]
 
-    dates_list = ["20221214"]
+    dates_list = ["20230215"]
     # elements_list = ["C", "O"]  # , "O"]  # , "O"]
-    discharges_list = [20]  # 20230117.050 rowniez kiepsko
+    discharges_list = [32]  # 20230117.050 rowniez kiepsko
 
     for date in dates_list:
         for discharge in discharges_list:
@@ -184,7 +183,7 @@ def main():
                                 time_interval,
                                 save_df=True,
                                 save_fig=True,
-                                plot=True,
+                                plot=False,
                             )
                         )
                 except FileNotFoundError:
@@ -195,10 +194,10 @@ def main():
             if len(bufor) >= 2:
                 parameters = (bufor, date, discharge)
                 plot_elements_comparison(
-                    *parameters, normalized=False, save_fig=True, plot=False
+                    *parameters, normalized=False, save_fig=True, plot=True
                 )
                 plot_elements_comparison(
-                    *parameters, normalized=True, save_fig=True, plot=False
+                    *parameters, normalized=True, save_fig=True, plot=True
                 )
 
 
