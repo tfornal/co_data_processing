@@ -40,7 +40,6 @@ def plot_elements_comparison(bufor, date, discharge_nr, normalized, save_fig, pl
     fig, ax1 = plt.subplots()
     ax2 = ax1.twiny()
     time = []
-    cols = ["discharge_time", "QSO_C_20230215.32", "utc_timestamps", "saturation", "time"]
     data_frames = []
     for idx, instance in enumerate(bufor):
         element, df = instance
@@ -62,12 +61,17 @@ def plot_elements_comparison(bufor, date, discharge_nr, normalized, save_fig, pl
             time_ns = times - total_discharge_df["utc_timestamps"][0]
             time_ns = float("{:.3f}".format(time_ns/1E9)) 
             time_in_ns_list.append(time_ns)
-
+        
         total_discharge_df["discharge_time"] = time_in_ns_list
-        plt.plot(total_discharge_df["discharge_time"], total_discharge_df["QSO_C_20230215.32"])
-        plt.show()
-        plt.close()
 
+
+        #plt.plot(total_discharge_df["discharge_time"], total_discharge_df.iloc[:, 1])
+        #plt.show()
+        #plt.close()
+        if normalized:
+            total_discharge_df.to_csv(f"{total_discharge_df.columns[1]}_normalized.csv", sep = "\t")
+        else:
+            total_discharge_df.to_csv(f"{total_discharge_df.columns[1]}.csv", sep = "\t")
         return total_discharge_df
 
     total_discharge_df = _calc_time()
