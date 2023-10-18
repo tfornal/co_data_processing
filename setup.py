@@ -1,5 +1,4 @@
 from setuptools import setup
-
 setup(
     name="data_processing",
     version="2023.09.01",

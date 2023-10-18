@@ -65,16 +65,15 @@ def select_integral_range(element):
     integral_range = ranges_dict[f"{element}"]
     return integral_range
 
+
 def convert_frequency_to_dt(frequency):
     return 1 / frequency
-
 
 def get_pixel_intens(binary_file_content, row, column):
     shift = 4096 + (row - 1) * 3072 + (column - 1) * 3
     binary_file_content.seek(shift)
     bytes_ = binary_file_content.read(3)
     return int.from_bytes(bytes_, "little")
-
 
 def get_spectrum(binary_file_content, cols_number, row):
     return list(
@@ -87,18 +86,14 @@ def get_spectrum(binary_file_content, cols_number, row):
 def is_saturated(spectrum):
     saturation_status_list = spectrum > MAX_PIXEL_CAPACITY
     saturated_pixel_count = np.count_nonzero(saturation_status_list)
-    percentage = saturated_pixel_count/len(saturation_status_list) * 100
-    if percentage > SATURATION_THRESHOLD:
+    ratio_of_saturated_pixels = saturated_pixel_count/len(saturation_status_list) * 100
+    if ratio_of_saturated_pixels > SATURATION_THRESHOLD:
         return True
     return False
 
-
 def integrate_spectrum(spectrum, spectrum_range):
-    ## TODO - background not removed -> procedure for saturation finding; 
-    # Extract the specified range of the spectrum
     start_index = spectrum_range[0]  
     end_index = spectrum_range[1]
-
     selected_spectrum = spectrum[start_index : end_index + 1]
     # Calculate the background level as the minimum value of the first and last data points in the range
     background = min(selected_spectrum[0], selected_spectrum[-1])
@@ -120,11 +115,12 @@ def get_det_size(binary_file):
     binary_file.seek(4)
     bites = binary_file.read(4)
     nrows = int.from_bytes(bites, "little")
+    
     return nrows, ncols
 
 
 def validate_time_duration(cls):
-    ### TODO
+    ### TODO - w dataviewerze; 
     ...
 
 
@@ -249,17 +245,10 @@ def plotter(element, date, df, exp_nr, file_name, plot, save_fig):
         df[f"QSO_{element}_{date}.{exp_nr}"],
         alpha=0,
     )
-
-    #     # Tworzenie wykresu liniowego dla 'discharge_time'
-    # plt.plot(df['discharge_time'], df['saturation'])
-
-    # Ustalenie, które wartości mają być oznaczone jako True
-
-    # Dodanie pionowych linii na wykresie
-    # ax3.vlines(x=true_values, ymin=0, ymax=6E7, colors='r', linestyles='dashed')
+    
+    # marks the area where the detector was saturated
     max_intensity = df[f"QSO_{element}_{date}.{exp_nr}"].max()
     ax2.fill_between(np.asarray(df["discharge_time"], float), 0, max_intensity, where=df["saturation"], color='red', alpha=0.4)
-
 
     ax2.plot(
         np.asarray(df["discharge_time"], float),
@@ -367,16 +356,16 @@ def run_intensity_calculations(
         plot,
         save_fig,
     )
-
+    return element, df
 
 def main():
     # TODO - checking whether the trigger informatin, assignment files (csv???) and discharge files do exists.
     # if not - raise warning! Or error. 
-    time_interval = [0, 120.85]
+    time_interval = [0, 12330.85]
     ### sprawic aby wybieranie przedzialu czasowego sprawialo ze wybiera odpowiednie pliki
-    dates_list = ["20230118"]
+    dates_list = ["20230215"]
     elements_list = ["C"]
-    discharges_list = [7]  # 20230117.050 rowniez kiepsko
+    discharges_list = [32]  # 20230117.050 rowniez kiepsko
     # jesli discharge to 0 to wyrzuca blad - TODO
     for date in dates_list:
         for discharge in discharges_list:

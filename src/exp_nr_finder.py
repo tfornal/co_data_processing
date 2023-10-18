@@ -32,7 +32,7 @@ class ExpAssignment:
         """
         Initializes the ExpAssignment object with the directory path and saves the file if specified.
         """
-        self.element = element
+        self.element = element  
         self.date = path.stem
 
         self.fpm_object = FilePathManager()

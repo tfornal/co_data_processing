@@ -72,7 +72,7 @@ class TriggersFromHTTP:
         return start_time_in_ns
 
     @classmethod 
-    def _calculate_day_end_ns(self, converted_date_tuple: tuple) -> int:
+    def _calculate_day_end_ns(cls, converted_date_tuple: tuple) -> int:
         year, month, date = converted_date_tuple
         end_of_the_day = datetime(year, month, date, 23, 59, 59, 0)
         end_time_in_ns = (
