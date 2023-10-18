@@ -40,14 +40,39 @@ def plot_elements_comparison(bufor, date, discharge_nr, normalized, save_fig, pl
     fig, ax1 = plt.subplots()
     ax2 = ax1.twiny()
     time = []
+    cols = ["discharge_time", "QSO_C_20230215.32", "utc_timestamps", "saturation", "time"]
+    data_frames = []
     for idx, instance in enumerate(bufor):
         element, df = instance
+        data_frames.append(df)
         time.append(len(df))
         color = "blue" if element == "C" else "red"
         plot_single_element(
             ax1, ax2, df, element, date, discharge_nr, normalized, color
         )
+    
+    total_discharge_df = pd.concat(data_frames, ignore_index = True)
+    time_in_ns_list = []
+
+    def _calc_time():
+        for idx, times in enumerate(total_discharge_df["utc_timestamps"]):
+            if idx ==0:
+                time_in_ns_list.append(0)
+                continue
+            time_ns = times - total_discharge_df["utc_timestamps"][0]
+            time_ns = float("{:.3f}".format(time_ns/1E9)) 
+            time_in_ns_list.append(time_ns)
+
+        total_discharge_df["discharge_time"] = time_in_ns_list
+        plt.plot(total_discharge_df["discharge_time"], total_discharge_df["QSO_C_20230215.32"])
+        plt.show()
+        plt.close()
+
+        return total_discharge_df
+
+    total_discharge_df = _calc_time()
     time = max(time)
+    
     plot_triggers(ax1, ax2, time, date, discharge_nr)
     labels = [element for instance in bufor]
     legend = ax2.legend(labels)
@@ -101,7 +126,9 @@ def plot_single_element(ax1, ax2, df, element, date, discharge_nr, normalized, c
 
     if normalized:
         intensity /= intensity.max()
+    
     # breakpoint()
+
     ax1.plot(
         pd.to_datetime(df["time"], format="%H:%M:%S.%f", errors="coerce"),
         intensity,
@@ -127,7 +154,6 @@ def configure_axes(ax1, ax2):
     ax2.set_xlabel("Discharge time [s]")
     ax1.grid(which="major")
     plt.tight_layout(rect=None)
-
 
 def save_or_show_plot(instance, date, discharge_nr, normalized, save_fig, plot):
     if not (save_fig or plot):
