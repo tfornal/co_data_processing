@@ -49,34 +49,35 @@ def plot_elements_comparison(bufor, date, discharge_nr, normalized, save_fig, pl
         plot_single_element(
             ax1, ax2, df, element, date, discharge_nr, normalized, color
         )
-    
-    total_discharge_df = pd.concat(data_frames, ignore_index = True)
+
+    total_discharge_df = pd.concat(data_frames, ignore_index=True)
     time_in_ns_list = []
 
     def _calc_time():
         for idx, times in enumerate(total_discharge_df["utc_timestamps"]):
-            if idx ==0:
+            if idx == 0:
                 time_in_ns_list.append(0)
                 continue
             time_ns = times - total_discharge_df["utc_timestamps"][0]
-            time_ns = float("{:.3f}".format(time_ns/1E9)) 
+            time_ns = float("{:.3f}".format(time_ns / 1e9))
             time_in_ns_list.append(time_ns)
-        
+
         total_discharge_df["discharge_time"] = time_in_ns_list
 
-
-        #plt.plot(total_discharge_df["discharge_time"], total_discharge_df.iloc[:, 1])
-        #plt.show()
-        #plt.close()
+        # plt.plot(total_discharge_df["discharge_time"], total_discharge_df.iloc[:, 1])
+        # plt.show()
+        # plt.close()
         if normalized:
-            total_discharge_df.to_csv(f"{total_discharge_df.columns[1]}_normalized.csv", sep = "\t")
+            total_discharge_df.to_csv(
+                f"{total_discharge_df.columns[1]}_normalized.csv", sep="\t"
+            )
         else:
-            total_discharge_df.to_csv(f"{total_discharge_df.columns[1]}.csv", sep = "\t")
+            total_discharge_df.to_csv(f"{total_discharge_df.columns[1]}.csv", sep="\t")
         return total_discharge_df
 
     total_discharge_df = _calc_time()
     time = max(time)
-    
+
     plot_triggers(ax1, ax2, time, date, discharge_nr)
     labels = [element for instance in bufor]
     legend = ax2.legend(labels)
@@ -130,7 +131,7 @@ def plot_single_element(ax1, ax2, df, element, date, discharge_nr, normalized, c
 
     if normalized:
         intensity /= intensity.max()
-    
+
     # breakpoint()
 
     ax1.plot(
@@ -159,6 +160,7 @@ def configure_axes(ax1, ax2):
     ax1.grid(which="major")
     plt.tight_layout(rect=None)
 
+
 def save_or_show_plot(instance, date, discharge_nr, normalized, save_fig, plot):
     if not (save_fig or plot):
         return None
@@ -184,14 +186,17 @@ def save_or_show_plot(instance, date, discharge_nr, normalized, save_fig, plot):
 
 
 def main():
-    time_interval = [0, 1000] # mapuje po WSZYSTKICH plikach do 110 a nie calosci wyladowania - TODO
+    time_interval = [
+        0,
+        1000,
+    ]  # mapuje po WSZYSTKICH plikach do 110 a nie calosci wyladowania - TODO
     ### sprawic aby wybieranie przedzialu czasowego sprawialo ze wybiera odpowiednie pliki
 
     dates_list = generate_dates_list("20230101", "20230331")
     elements_list = ["C"]  # , "O"]
     discharges_list = [i for i in range(1, 100)]
 
-    dates_list = ["20230215"]
+    dates_list = ["20230215"]  # TODO - exp_nr_finder
     # elements_list = ["C", "O"]  # , "O"]  # , "O"]
     discharges_list = [32]  # 20230117.050 rowniez kiepsko
 
