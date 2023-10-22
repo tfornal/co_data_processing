@@ -17,7 +17,8 @@ from file_reader import (
 from utc_converter import get_time_from_UTC
 
 MAX_PIXEL_CAPACITY = 241_000
-SATURATION_THRESHOLD = 1 # %
+SATURATION_THRESHOLD = 1  # %
+
 
 def timer(function):
     @wraps(function)
@@ -30,6 +31,7 @@ def timer(function):
 
     return wrapper
 
+
 def get_intensity(spectra_without_bgr, integral_range):
     intensity = [
         integrate_spectrum(np.array(spectra_without_bgr[i]), integral_range)
@@ -37,10 +39,13 @@ def get_intensity(spectra_without_bgr, integral_range):
     ]
     return intensity
 
+
 def validate_detector_saturation(spectra_without_bgr):
-    saturation = [is_saturated(np.array(spectra_without_bgr[i]))
-    for i in spectra_without_bgr]
+    saturation = [
+        is_saturated(np.array(spectra_without_bgr[i])) for i in spectra_without_bgr
+    ]
     return saturation
+
 
 def get_utc_time(exp_info_df):
     return int(exp_info_df["new_time"].iloc[0])
@@ -69,11 +74,13 @@ def select_integral_range(element):
 def convert_frequency_to_dt(frequency):
     return 1 / frequency
 
+
 def get_pixel_intens(binary_file_content, row, column):
     shift = 4096 + (row - 1) * 3072 + (column - 1) * 3
     binary_file_content.seek(shift)
     bytes_ = binary_file_content.read(3)
     return int.from_bytes(bytes_, "little")
+
 
 def get_spectrum(binary_file_content, cols_number, row):
     return list(
@@ -83,16 +90,20 @@ def get_spectrum(binary_file_content, cols_number, row):
         )
     )
 
+
 def is_saturated(spectrum):
     saturation_status_list = spectrum > MAX_PIXEL_CAPACITY
     saturated_pixel_count = np.count_nonzero(saturation_status_list)
-    ratio_of_saturated_pixels = saturated_pixel_count/len(saturation_status_list) * 100
+    ratio_of_saturated_pixels = (
+        saturated_pixel_count / len(saturation_status_list) * 100
+    )
     if ratio_of_saturated_pixels > SATURATION_THRESHOLD:
         return True
     return False
 
+
 def integrate_spectrum(spectrum, spectrum_range):
-    start_index = spectrum_range[0]  
+    start_index = spectrum_range[0]
     end_index = spectrum_range[1]
     selected_spectrum = spectrum[start_index : end_index + 1]
     # Calculate the background level as the minimum value of the first and last data points in the range
@@ -103,7 +114,7 @@ def integrate_spectrum(spectrum, spectrum_range):
     pixels = np.arange(start_index, end_index + 1)
     # Integrate the spectrum using Simpson's rule
     integral = integrate.simps(spectrum_without_background, pixels)
-    
+
     return integral
 
 
@@ -115,12 +126,12 @@ def get_det_size(binary_file):
     binary_file.seek(4)
     bites = binary_file.read(4)
     nrows = int.from_bytes(bites, "little")
-    
+
     return nrows, ncols
 
 
 def validate_time_duration(cls):
-    ### TODO - w dataviewerze; 
+    ### TODO - w dataviewerze;
     ...
 
 
@@ -211,7 +222,7 @@ def make_df(
     df[f"QSO_{element}_{date}.{exp_nr}"] = df[f"QSO_{element}_{date}.{exp_nr}"].round(1)
     df["utc_timestamps"] = utc_time_stamps
     df["saturation"] = saturation
-    df = df.iloc[:-1] # excludes last timeframe to remove unphysical data 
+    df = df.iloc[:-1]  # excludes last timeframe to remove unphysical data
 
     time = list(map(get_time_from_UTC, df["utc_timestamps"]))
 
@@ -245,10 +256,17 @@ def plotter(element, date, df, exp_nr, file_name, plot, save_fig):
         df[f"QSO_{element}_{date}.{exp_nr}"],
         alpha=0,
     )
-    
+
     # marks the area where the detector was saturated
     max_intensity = df[f"QSO_{element}_{date}.{exp_nr}"].max()
-    ax2.fill_between(np.asarray(df["discharge_time"], float), 0, max_intensity, where=df["saturation"], color='red', alpha=0.4)
+    ax2.fill_between(
+        np.asarray(df["discharge_time"], float),
+        0,
+        max_intensity,
+        where=df["saturation"],
+        color="red",
+        alpha=0.4,
+    )
 
     ax2.plot(
         np.asarray(df["discharge_time"], float),
@@ -332,9 +350,9 @@ def run_intensity_calculations(
         spectra_without_bgr,
         integral_range,
     )
-    saturation = validate_detector_saturation(spectra,
+    saturation = validate_detector_saturation(
+        spectra,
     )
-
 
     df = make_df(
         element,
@@ -358,9 +376,10 @@ def run_intensity_calculations(
     )
     return element, df
 
+
 def main():
     # TODO - checking whether the trigger informatin, assignment files (csv???) and discharge files do exists.
-    # if not - raise warning! Or error. 
+    # if not - raise warning! Or error.
     time_interval = [0, 1]
     ### sprawic aby wybieranie przedzialu czasowego sprawialo ze wybiera odpowiednie pliki
     dates_list = ["20230215"]

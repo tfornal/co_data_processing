@@ -87,7 +87,9 @@ class ExperimentalFilesSelector(FileListExtractor):
             and file.stem in self.select_file_names(element, date, exp_nr)
             and "BGR" not in file.stem
         ]
-        return discharge_files
+        ### TODO !!!! to be checked if natsort needs to be implemented in
+        ### other places as well
+        return natsort.os_sorted(discharge_files)
 
 
 class ExperimentalDataExtractor(FileListExtractor):

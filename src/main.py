@@ -67,12 +67,18 @@ def plot_elements_comparison(bufor, date, discharge_nr, normalized, save_fig, pl
         # plt.plot(total_discharge_df["discharge_time"], total_discharge_df.iloc[:, 1])
         # plt.show()
         # plt.close()
+        df = total_discharge_df.iloc[:, :-2]
+        res = df.groupby(np.arange(len(df)) // 10).mean()
+        # res.plot(x="discharge_time", y="QSO_C_20230215.32")
+        # plt.show()
+        # breakpoint()
         if normalized:
             total_discharge_df.to_csv(
                 f"{total_discharge_df.columns[1]}_normalized.csv", sep="\t"
             )
         else:
             total_discharge_df.to_csv(f"{total_discharge_df.columns[1]}.csv", sep="\t")
+
         return total_discharge_df
 
     total_discharge_df = _calc_time()
@@ -107,13 +113,13 @@ def plot_triggers(ax, ax2, time, date, discharge_nr):
         label="T1",
         linewidth=1,
     )
-    # ax.axvline(
-    #     x=pd.to_datetime(T6_human, format="%H:%M:%S.%f", errors="coerce"),
-    #     color="black",
-    #     linestyle="--",
-    #     label="T6",
-    #     linewidth=1,
-    # )
+    ax.axvline(
+        x=pd.to_datetime(T6_human, format="%H:%M:%S.%f", errors="coerce"),
+        color="black",
+        linestyle="--",
+        label="T6",
+        linewidth=1,
+    )
 
     # delta = (T6 - T1) / 1e9
     # ax2.axvline(
@@ -186,10 +192,8 @@ def save_or_show_plot(instance, date, discharge_nr, normalized, save_fig, plot):
 
 
 def main():
-    time_interval = [
-        0,
-        1000,
-    ]  # mapuje po WSZYSTKICH plikach do 110 a nie calosci wyladowania - TODO
+    time_interval = [0, 1000]
+    # mapuje po WSZYSTKICH plikach do 110 a nie calosci wyladowania - TODO
     ### sprawic aby wybieranie przedzialu czasowego sprawialo ze wybiera odpowiednie pliki
 
     dates_list = generate_dates_list("20230101", "20230331")
@@ -230,9 +234,6 @@ def main():
                 parameters = (bufor, date, discharge)
                 plot_elements_comparison(
                     *parameters, normalized=False, save_fig=True, plot=True
-                )
-                plot_elements_comparison(
-                    *parameters, normalized=True, save_fig=True, plot=True
                 )
 
 
