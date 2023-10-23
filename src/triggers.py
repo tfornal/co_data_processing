@@ -174,7 +174,7 @@ class Triggers(TriggersFromFile, TriggersFromHTTP):
 
     def grab_triggers_df(self, date):
         triggers_df = TriggersFromFile().read_from_file(date)
-        if triggers_df:
+        if triggers_df is not None:
             return triggers_df
         else:
             logging.debug("TODO ZROBIC REFACTORING from http!")
@@ -182,7 +182,7 @@ class Triggers(TriggersFromFile, TriggersFromHTTP):
 
 
 if __name__ == "__main__":
-    date = "202303215"
+    date = "20230316"
     ## TODO - test - data w konkretnym formacie i nic wiecej;
     triggers_df = Triggers().grab_triggers_df(date)
     print(triggers_df)
