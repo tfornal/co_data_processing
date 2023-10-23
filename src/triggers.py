@@ -1,19 +1,31 @@
 from datetime import datetime
 import calendar
+import logging
 import requests
-import pandas as pd
 import pathlib
+
+import pandas as pd
 
 from file_reader import FilePathManager
 
+# Konfiguracja loggera
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s %(levelname)s %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    filename="logs.log",
+)
 
 # 1 - check if file exists
 # 2 - if not - establish connection and download from api
-# 3 - get triggers into dataframe; 
-
+# 3 - get triggers into dataframe;
 
 
 class TriggersFromFile:
+    def __init__(self):
+        print(__name__)
+        self.logger = logging.getLogger(__name__)
+
     @classmethod
     def _get_program_triggers_directory(cls):
         fpm = FilePathManager()
@@ -32,24 +44,23 @@ class TriggersFromFile:
             return triggers_df
 
         except FileNotFoundError:
-            print(f"{date} local Trigger file does not exist. Downloading...")
-            return None
-
+            self.logger.error(
+                f"{date} local Trigger file does not exist. Attempting to downloading...."
+            )
 
 
 class TriggersFromHTTP:
-
     ARCHIVE_PROGINFO = "http://archive-webapi.ipp-hgw.mpg.de/programs.json?from="
 
     # def __init__(self):
-        
-        # if not self.triggers_df:
-        # self.beginning_of_the_day, self.end_of_the_day = self._convert_to_utc()
-        # self.url = self._get_url()
-        # self.triggers = self._get_triggers_utc()
-        # self.triggers_df = self._create_df()
-        # if savefile:
-        #     self.save_file()
+
+    # if not self.triggers_df:
+    # self.beginning_of_the_day, self.end_of_the_day = self._convert_to_utc()
+    # self.url = self._get_url()
+    # self.triggers = self._get_triggers_utc()
+    # self.triggers_df = self._create_df()
+    # if savefile:
+    #     self.save_file()
 
     @classmethod
     def _convert_date_to_tuple(cls, date: str) -> tuple:
@@ -59,36 +70,32 @@ class TriggersFromHTTP:
             return year, month, day
         except ValueError:
             raise ValueError("Niepoprawny format daty. Oczekiwany format to YYYYMMDD.")
-    
+
     @classmethod
     def _calculate_day_start_ns(self, converted_date_tuple):
         year, month, date = converted_date_tuple
         start_of_the_day = datetime(year, month, date, 0, 0, 0, 0)
         start_time_in_ns = (
-            int(round(calendar.timegm(start_of_the_day.timetuple())))
-            * 1_000_000_000
+            int(round(calendar.timegm(start_of_the_day.timetuple()))) * 1_000_000_000
             + start_of_the_day.microsecond * 1_000
-        )  
+        )
         return start_time_in_ns
 
-    @classmethod 
+    @classmethod
     def _calculate_day_end_ns(cls, converted_date_tuple: tuple) -> int:
         year, month, date = converted_date_tuple
         end_of_the_day = datetime(year, month, date, 23, 59, 59, 0)
         end_time_in_ns = (
-            int(round(calendar.timegm(end_of_the_day.timetuple())))
-            * 1_000_000_000
+            int(round(calendar.timegm(end_of_the_day.timetuple()))) * 1_000_000_000
             + end_of_the_day.microsecond * 1_000
-        )  
+        )
         return end_time_in_ns
-
 
     def convert_date_to_ns_range(self, date):
         converted_date_tuple = self._convert_date_to_tuple(date)
         day_start_ns = self._calculate_day_start_ns(converted_date_tuple)
         day_end_ns = self._calculate_day_end_ns(converted_date_tuple)
         return day_start_ns, day_end_ns
-
 
     def _get_url(self, timestamps_in_ns: tuple) -> str:
         """Returns the URL for accessing triggers data for the `date` passed as parameter."""
@@ -99,7 +106,6 @@ class TriggersFromHTTP:
             + str(self.end_of_the_day)
         )
         return url
-    
 
     def _get_triggers_utc(self):
         """
@@ -140,7 +146,6 @@ class TriggersFromHTTP:
                 triggers["T6"].append(end_of_program)
         return triggers
 
-
     def get_triggers_df(self):
         """Creates a pandas DataFrame from the processed triggers data."""
         triggers_df = pd.DataFrame()
@@ -163,12 +168,21 @@ class TriggersFromHTTP:
         print("Triggers successfully saved!")
 
 
-class Triggers:
-    print("Trrr")
+class Triggers(TriggersFromFile, TriggersFromHTTP):
+    # def __init__(self, date):
+    #     self.date = date
+
+    def grab_triggers_df(self, date):
+        triggers_df = TriggersFromFile().read_from_file(date)
+        if triggers_df:
+            return triggers_df
+        else:
+            logging.debug("TODO ZROBIC REFACTORING from http!")
+            pass
+
 
 if __name__ == "__main__":
-    date = "20230323"
-    # triggers_df = TriggersFromFile().read_from_file(date)
-    triggers_df = TriggersFromHTTP().convert_date_to_ns_range(date)
+    date = "202303215"
+    ## TODO - test - data w konkretnym formacie i nic wiecej;
+    triggers_df = Triggers().grab_triggers_df(date)
     print(triggers_df)
-    # Triggers()

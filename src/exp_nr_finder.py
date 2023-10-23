@@ -32,7 +32,7 @@ class ExpAssignment:
         """
         Initializes the ExpAssignment object with the directory path and saves the file if specified.
         """
-        self.element = element  
+        self.element = element
         self.date = path.stem
 
         self.fpm_object = FilePathManager()
@@ -63,8 +63,8 @@ class ExpAssignment:
         return self.fobject.get_file_sizes()
 
     def _get_triggers(self, date):
-        t = Triggers(date)
-        return t.triggers_df
+        triggers_df = Triggers().grab_triggers_df(date)
+        return triggers_df
 
     def convert_fname_to_time(self, file_name):
         fname_parts = file_name.split("_")
