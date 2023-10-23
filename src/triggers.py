@@ -23,7 +23,6 @@ logging.basicConfig(
 
 class TriggersFromFile:
     def __init__(self):
-        print(__name__)
         self.logger = logging.getLogger(__name__)
 
     @classmethod
@@ -185,4 +184,3 @@ if __name__ == "__main__":
     date = "20230316"
     ## TODO - test - data w konkretnym formacie i nic wiecej;
     triggers_df = Triggers().grab_triggers_df(date)
-    print(triggers_df)
