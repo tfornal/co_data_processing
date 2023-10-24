@@ -223,7 +223,6 @@ def make_df(
     df["utc_timestamps"] = utc_time_stamps
     df["saturation"] = saturation
     df = df.iloc[:-1]  # excludes last timeframe to remove unphysical data
-
     time = list(map(get_time_from_UTC, df["utc_timestamps"]))
 
     x_labels = [date.strftime("%H:%M:%S.%f")[:-4] for date in time]

@@ -2,7 +2,8 @@
 """
 The code must contain only the data folder containing the corresponding folders 
 in "YYMMDD" format. Subsequent sub-folders (with their names in YYMMDD format) 
-must contain the data recorded by the C/O monitor system (in *.dat format) .
+must contain the data recorded by the C/O monitor system (in *.dat format).
+Needs to be executed only once.
 """
 import calendar
 from pathlib import Path
@@ -88,7 +89,7 @@ class ArgsToAcquisitionParametersDataFrame:
 
 
 class AcquisitionParametersFinder(ArgsToAcquisitionParametersDataFrame):
-    def __init__(self, element, path, save=True):
+    def __init__(self, element, path, savefile=True):
         super().__init__(element, path)
         self.files_info_df = self._make_df(self.path)
         self.files_info_df = self._get_utc_time(self.files_info_df)
@@ -109,7 +110,7 @@ class AcquisitionParametersFinder(ArgsToAcquisitionParametersDataFrame):
             self.files_info_df,
             self.triggers_df,
         )
-        if save:
+        if savefile:
             self.save_to_file(self.element, self.date)
 
     def _get_exp_numbers_directory(self, element: str) -> Path:
@@ -357,8 +358,14 @@ def get_exp_data_subdirs(element):
 
     return natsort.os_sorted(sub_dirs)
 
-
-element = "O"
-list_of_dirs = get_exp_data_subdirs(element)
-for dir_path in list_of_dirs:
-    AcquisitionParametersFinder(element, dir_path)
+if __name__ == "__main__":
+    elements = ["C", "O"]
+    for element in elements:
+        list_of_dirs = get_exp_data_subdirs(element)
+        for dir_path in list_of_dirs:
+            # if "20230117" in str(directory):
+            try:
+                exp_ass = AcquisitionParametersFinder(element, dir_path, savefile=True)
+            except ValueError:
+                print(f" {dir_path} - Cannot process the data - continuing.")
+                continue
