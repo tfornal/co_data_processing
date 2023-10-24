@@ -18,8 +18,8 @@ from triggers import Triggers
 
 pd.options.mode.chained_assignment = None
 
-# self.element = element
-# self.date = path.stem
+# element = element
+# date = path.stem
 
 
 def extract_date_from_path(dir_path: str) -> str:
@@ -33,7 +33,7 @@ def get_exp_data_parameters_directory():
     return exp_data_parameters_dir_path
 
 
-def get_exp_numbers_directory(element: str) -> pathlib.Path:
+def get_exp_numbers_directory(element: str) -> Path:
     fpm = FilePathManager()
     exp_numbers_dir_path = fpm.get_directory_for_exp_numbers(element)
     return exp_numbers_dir_path
@@ -54,7 +54,7 @@ def _get_triggers(date):
     return triggers_df
 
 
-def convert_fname_to_time(self, file_name):
+def convert_fname_to_time(file_name):
     fname_parts = file_name.split("_")
     time_part = fname_parts[1]
 
@@ -72,31 +72,32 @@ def convert_fname_to_time(self, file_name):
     return fname_parts
 
 
-def get_info_from_fname(self):
-    return list(
-        map(lambda file_name: self.convert_fname_to_time(file_name), self.fname_list)
-    )
+def get_info_from_fname(path):
+    fname_list = get_file_names(path)
+    return list(map(lambda file_name: convert_fname_to_time(file_name), fname_list))
 
 
-def _check_if_longer(self, list_of_sublists: list) -> bool:
+def _check_if_longer(list_of_sublists: list) -> bool:
     any_longer_than_3 = any(len(sublist) > 3 for sublist in list_of_sublists)
 
     if any_longer_than_3:
         return True
 
 
-def make_df() -> pd.DataFrame:
-    splitted_fnames = get_info_from_fname()
+def make_df(path) -> pd.DataFrame:
+    fname_list = get_file_names(path)
+    files_sizes = get_file_sizes(path)
+    splitted_fnames = get_info_from_fname(path)
     columns = ["date", "time", "miliseconds"]
-    if self._check_if_longer(splitted_fnames):
+    if _check_if_longer(splitted_fnames):
         columns.append("type_of_data")
         df = pd.DataFrame(splitted_fnames, columns=columns)
     else:
         df = pd.DataFrame(splitted_fnames, columns=columns)
         df["type_of_data"] = "spectrum"
 
-    df["file_name"] = self.fname_list
-    df["file_size"] = self.file_sizes
+    df["file_name"] = fname_list
+    df["file_size"] = files_sizes
     df["date"] = "20" + df["date"]
     df["file_size"] = df["file_size"].astype(int)
 
@@ -110,11 +111,10 @@ def make_df() -> pd.DataFrame:
         "file_size",
     ]
     files_info_df = df[new_order]
-
     return files_info_df
 
 
-def _convert_human_to_utc_ns(self, date: str, time: str, miliseconds: str) -> int:
+def convert_human_to_utc_ns(date: str, time: str, miliseconds: str) -> int:
     """
     Converts a given date and time to UTC timestamp in nanoseconds.
 
@@ -146,7 +146,7 @@ def _convert_human_to_utc_ns(self, date: str, time: str, miliseconds: str) -> in
     return utc_time_in_ns
 
 
-def _get_utc_time(self, df: pd.DataFrame) -> pd.DataFrame:
+def _get_utc_time(df: pd.DataFrame) -> pd.DataFrame:
     """
     Calculates the UTC timestamp for each row of `files_info` and adds it as a new column named 'utc_time'.
 
@@ -156,7 +156,7 @@ def _get_utc_time(self, df: pd.DataFrame) -> pd.DataFrame:
         The list of UTC timestamps for each row of `files_info`.
     """
     df["utc_time"] = df.apply(
-        lambda row: self._convert_human_to_utc_ns(
+        lambda row: convert_human_to_utc_ns(
             row["date"], row["time"], row["miliseconds"]
         ),
         axis=1,
@@ -167,7 +167,7 @@ def _get_utc_time(self, df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def get_det_size(self, binary_file):
+def get_det_size(binary_file):
     # nr of rows means the number of collected frames
     binary_file.seek(4)
     bites = binary_file.read(4)
@@ -176,7 +176,7 @@ def get_det_size(self, binary_file):
     return nrows
 
 
-def get_pulse_length(self, element, date):
+def get_pulse_length(element, date):
     path_manager = FilePathManager()
     path = path_manager.get_directory_for_exp_data(element, date)
 
@@ -186,14 +186,14 @@ def get_pulse_length(self, element, date):
     dlugosci = []
     for file_path in file_paths:
         with open(file_path, "rb") as binary_file:
-            rows_number = self.get_det_size(binary_file)
+            rows_number = get_det_size(binary_file)
             dlugosci.append(rows_number)
 
     return file_list, dlugosci
 
 
-def _get_frequency(self, element, files_info_df):
-    path_exp_data_params = self.fpm_object.get_directory_for_exp_data_parameters()
+def _get_frequency(element, date, files_info_df):
+    path_exp_data_params = get_exp_data_parameters_directory()
     setup_notes = path_exp_data_params / f"{element}-camera_setups.csv"
     with open(setup_notes, "r") as data:
         camera_setups = pd.read_csv(
@@ -215,7 +215,7 @@ def _get_frequency(self, element, files_info_df):
 
     files_info_df = merged_df.sort_values(by="file_name")
     files_info_df["frequency"] = files_info_df["frequency"].astype(int)
-    file_list, pulse_lengths = self.get_pulse_length(self.element, self.date)
+    file_list, pulse_lengths = get_pulse_length(element, date)
     data = {"file_name": file_list, "frames_amount": pulse_lengths}
     df2 = pd.DataFrame(data)
     files_info_df = files_info_df.reset_index().merge(df2, on="file_name")
@@ -223,19 +223,21 @@ def _get_frequency(self, element, files_info_df):
     return files_info_df
 
 
-def _update_acquisition_time(self, files_info_df):
+def _update_acquisition_time(files_info_df):
     dt = 1 / files_info_df["frequency"]
     time = files_info_df["frames_amount"] * dt
     files_info_df["acquisition_time"] = time.round(2)
+    return files_info_df
 
 
-def _calc_utc_start_time_ns(self, files_info_df):
+def _calc_utc_start_time_ns(files_info_df):
     files_info_df["utc_start_time"] = files_info_df["utc_time"] - (
         1e9 * files_info_df["acquisition_time"]
     ).astype("int64")
+    return files_info_df
 
 
-def _assign_discharge_nrs(self, files_info_df, triggers_df, date):
+def _assign_discharge_nrs(files_info_df, triggers_df, date):
     files_info_df["discharge_nr"] = 0
     dictionary = {}
 
@@ -284,9 +286,10 @@ def _assign_discharge_nrs(self, files_info_df, triggers_df, date):
     files_info_df["discharge_nr"] = files_info_df["discharge_nr"].astype(
         {"discharge_nr": "int32"}, errors="ignore"
     )
+    return files_info_df
 
 
-def _shift_to_T1(self, files_info_df, triggers_df):
+def _shift_to_T1(files_info_df, triggers_df):
     calibrated_start_times = {}
     discharge_nr = 0
     save_time_offset = 0
@@ -312,26 +315,15 @@ def _shift_to_T1(self, files_info_df, triggers_df):
         + files_info_df["acquisition_time"] * 1e9
     )
     files_info_df["new_time"] = files_info_df["new_time"].astype("int64")
+    return files_info_df
 
 
-def save_file(self):
-    path = self.fpm_object.get_directory_for_exp_numbers(self.element)
+def save_file():
+    path = fpm_object.get_directory_for_exp_numbers(element)
     path.mkdir(parents=True, exist_ok=True)
-    self.files_info.to_csv(path / f"{self.element}-{self.date}.csv", sep="\t")
+    files_info.to_csv(path / f"{element}-{date}.csv", sep="\t")
 
-    print(f"{self.element}_{self.date} - Experimental details saved!")
-
-
-self.files_info = self.make_df()
-self._get_utc_time(self.files_info)
-## why assign another variable?
-self.files_info = self._get_frequency(self.element, self.files_info)
-self._update_acquisition_time(self.files_info)
-self._calc_utc_start_time_ns(self.files_info)
-self._assign_discharge_nrs(self.files_info, self.triggers_df, self.date)
-self._shift_to_T1(self.files_info, self.triggers_df)
-# if savefile:
-# save_file()
+    print(f"{element}_{date} - Experimental details saved!")
 
 
 def get_exp_data_subdirs(element):
@@ -344,14 +336,34 @@ def get_exp_data_subdirs(element):
     return natsort.os_sorted(sub_dirs)
 
 
-if __name__ == "__main__":
-    elements = ["C"]  # , "O"]
-    for element in elements:
-        list_of_directories = get_exp_data_subdirs(element)
-        for directory in list_of_directories:
-            # if "20230117" in str(directory):
-            try:
-                exp_ass = ExpAssignment(element, directory, savefile=True)
-            except ValueError:
-                print(f" {directory} - Cannot process the data - continuing.")
-                continue
+path = get_exp_data_subdirs("C")[0]
+element = "C"
+date = extract_date_from_path(path)
+triggers_df = _get_triggers(date)
+
+
+files_info = make_df(path)
+# ns_time = _convert_human_to_utc_ns(date, time, miliseconds)
+utc_time = _get_utc_time(files_info)
+# ## why assign another variable?
+
+files_info = _get_frequency(element, date, files_info)
+files_info = _update_acquisition_time(files_info)
+files_info = _calc_utc_start_time_ns(files_info)
+files_info = _assign_discharge_nrs(files_info, triggers_df, date)
+files_info = _shift_to_T1(files_info, triggers_df)
+print(files_info)
+# # if savefile:
+# # save_file()
+
+# if __name__ == "__main__":
+#     elements = ["C"]  # , "O"]
+#     for element in elements:
+#         list_of_directories = get_exp_data_subdirs(element)
+#         for directory in list_of_directories:
+#             # if "20230117" in str(directory):
+#             try:
+#                 exp_ass = ExpAssignment(element, directory, savefile=True)
+#             except ValueError:
+#                 print(f" {directory} - Cannot process the data - continuing.")
+#                 continue
