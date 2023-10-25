@@ -72,16 +72,12 @@ def plot_elements_comparison(bufor, date, discharge_nr, normalized, save_fig, pl
         # res.plot(x="discharge_time", y="QSO_C_20230215.32")
         # plt.show()
         # breakpoint()
-        if normalized:
-            total_discharge_df.to_csv(
-                f"{total_discharge_df.columns[1]}_normalized.csv", sep="\t"
-            )
-        else:
-            total_discharge_df.to_csv(f"{total_discharge_df.columns[1]}.csv", sep="\t")
-
         return total_discharge_df
 
     total_discharge_df = _calc_time()
+    ##################
+    total_discharge_df.to_csv(f"{date}.0{discharge_nr}.csv", "\t", index=False)
+    ##################
     time = max(time)
 
     plot_triggers(ax1, ax2, time, date, discharge_nr)
@@ -188,6 +184,9 @@ def save_or_show_plot(instance, date, discharge_nr, normalized, save_fig, plot):
     #         f"QSO_comparison_{image_type}_{date}.{discharge_nr:03} - intensity evolution saved!"
     #     )
     if plot:
+        #########################################
+        plt.savefig(f"{date}.0{discharge_nr}.png", dpi=400)
+        #########################################
         plt.show()
 
 
@@ -200,9 +199,9 @@ def main():
     elements_list = ["C", "O"]  # , "O"]
     discharges_list = [i for i in range(1, 100)]
 
-    dates_list = ["20230216"]  # TODO - exp_nr_finder
+    dates_list = ["20230119"]
     # elements_list = ["C", "O"]  # , "O"]  # , "O"]
-    discharges_list = [59]  # 20230117.050 rowniez kiepsko
+    discharges_list = [49]  # 20230117.050 rowniez kiepsko
 
     for date in dates_list:
         for discharge in discharges_list:
@@ -222,7 +221,7 @@ def main():
                                 time_interval,
                                 save_df=True,
                                 save_fig=True,
-                                plot=True,
+                                plot=False,
                             )
                         )
                 except FileNotFoundError:
