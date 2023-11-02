@@ -19,7 +19,7 @@ from triggers import Triggers
 
 pd.options.mode.chained_assignment = None
 
-TIME_AFTER_DISCHARGE = 1e9
+TIME_AFTER_DISCHARGE = 15e9
 
 
 class ArgsToAcquisitionParametersDataFrame:
@@ -313,10 +313,11 @@ class AcquisitionParametersFinder(ArgsToAcquisitionParametersDataFrame):
         return files_info_df
 
     def _shift_to_T1(self, files_info_df, triggers_df):
+        ### TODO refactoring extremely needed! Break into smaller functions
+
         calibrated_start_times = {}
         discharge_nr = 0
         save_time_offset = 0
-
         for idx_df_total, row_total in files_info_df.iterrows():
             for idx_df_triggers, row_triggers in triggers_df.iterrows():
                 if (
@@ -337,6 +338,8 @@ class AcquisitionParametersFinder(ArgsToAcquisitionParametersDataFrame):
             - offset
             + files_info_df["acquisition_time"] * 1e9
         )
+        ## new_time - jest to czas zapisu pliku po uwzglednieniu offsetu
+        ## (offset = T1 - (czas zapisu - duration))
         files_info_df["new_time"] = files_info_df["new_time"].astype("int64")
         return files_info_df
 
