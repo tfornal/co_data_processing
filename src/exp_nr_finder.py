@@ -6,7 +6,7 @@ must contain the data recorded by the C/O monitor system (in *.dat format).
 Needs to be executed only once.
 """
 import calendar
-from pathlib import Path
+from pathlib import Path, PosixPath
 from dateutil import tz
 from datetime import datetime
 
@@ -29,7 +29,7 @@ class ArgsToAcquisitionParametersDataFrame:
         self.date = self._extract_date_from_path(self.path)
         self.triggers_df = self._get_triggers(self.date)
         self.files_list = self._get_files_list(self.element, self.date)
-        self.pulse_lengths = self._get_lengths_of_pulses(self.element, self.date)
+        self.nr_of_frames = self._get_nr_of_frames(self.element, self.date)
         self.camera_setups = self._get_setup_notes(self.element)
 
     def _get_exp_data_parameters_directory(self):
@@ -37,7 +37,7 @@ class ArgsToAcquisitionParametersDataFrame:
         exp_data_parameters_dir_path = fpm.get_directory_for_exp_data_parameters()
         return exp_data_parameters_dir_path
 
-    def get_exp_data_files_directory(self, element, date):
+    def get_exp_data_files_directory(self, element: str, date: str) -> PosixPath:
         fpm = FilePathManager()
         main_directory_for_exp_files = fpm.get_directory_for_exp_data(element, date)
         return main_directory_for_exp_files
@@ -64,43 +64,55 @@ class ArgsToAcquisitionParametersDataFrame:
         return triggers_df
 
     def _get_det_size(self, binary_file):
-        # nr of rows means the number of collected frames
+        # nr of rows is the number of collected frames
         binary_file.seek(4)
         bites = binary_file.read(4)
         nrows = int.from_bytes(bites, "little")
         return nrows
 
-    def _get_list_of_files_paths(self, element, date):
+    def _get_list_of_files_paths(self, element: str, date: str):
         main_directory_for_exp_files = self.get_exp_data_files_directory(element, date)
         files_paths = list(main_directory_for_exp_files.glob("**/*"))
         return files_paths
 
-    def _get_files_list(self, element, date):
+    def _get_files_list(self, element: str, date: str):
         files_paths = self._get_list_of_files_paths(element, date)
         files_list = [x.stem for x in files_paths if x.is_file()]
         return files_list
 
-    def _get_lengths_of_pulses(self, element, date):
+    def _get_nr_of_frames(self, element: str, date: str):
         files_paths = self._get_list_of_files_paths(element, date)
-        pulse_lengths = []
+        nr_of_frames = []
         for file_path in files_paths:
             with open(file_path, "rb") as binary_file:
                 rows_number = self._get_det_size(binary_file)
-                pulse_lengths.append(rows_number)
-        return pulse_lengths
+                nr_of_frames.append(rows_number)
+        return nr_of_frames
 
 
 class AcquisitionParametersFinder(ArgsToAcquisitionParametersDataFrame):
     def __init__(self, element, path, savefile=True):
         super().__init__(element, path)
         self.files_info_df = self._make_df(self.path)
-        self.files_info_df = self._get_utc_time(self.files_info_df)
-        self.files_info_df = self._get_frequency(
-            self.files_info_df,
-            self.camera_setups,
-            self.files_list,
-            self.pulse_lengths,
+        self.files_info_df = self._calculate_utc_ns_time(self.files_info_df)
+        # self.files_info_df = self._get_frequency(
+        #     self.files_info_df,
+        #     self.camera_setups,
+        #     self.files_list,
+        #     self.nr_of_frames,
+        # )
+
+        self.exp_setup_df = self._merge_exp_setups_dataframes(
+            self.files_info_df, self.camera_setups
         )
+        self.files_info_df = self._assign_frequency(self.exp_setup_df)
+        self.recorded_frames_amount = self._extract_frames_nr(
+            self.files_list, self.nr_of_frames
+        )
+        self.files_info_df = self._merge_finfo_frames_nr_dataframes(
+            self.files_info_df, self.recorded_frames_amount
+        )
+
         self.files_info_df = self._update_acquisition_time(self.files_info_df)
         self.files_info_df = self._calc_utc_start_time_ns(self.files_info_df)
         self.files_info_df = self._assign_discharge_nrs(
@@ -120,15 +132,15 @@ class AcquisitionParametersFinder(ArgsToAcquisitionParametersDataFrame):
         exp_numbers_dir_path = fpm.get_directory_for_exp_numbers(element)
         return exp_numbers_dir_path
 
-    def get_file_names(self, path: Path) -> Path:
+    def _get_file_names(self, path: PosixPath) -> Path:
         fic = FileInformationCollector()
         return fic.get_files_names(path)
 
-    def get_file_sizes(self, path):
+    def _get_file_sizes(self, path: PosixPath) -> list:
         fic = FileInformationCollector()
         return fic.get_files_sizes(path)
 
-    def convert_fname_to_time(self, file_name):
+    def _convert_fname_to_time(self, file_name):
         fname_parts = file_name.split("_")
         time_part = fname_parts[1]
 
@@ -145,10 +157,10 @@ class AcquisitionParametersFinder(ArgsToAcquisitionParametersDataFrame):
 
         return fname_parts
 
-    def get_info_from_fname(self, path):
-        fname_list = self.get_file_names(path)
+    def _get_info_from_fname(self, path):
+        fnames_list = self._get_file_names(path)
         return list(
-            map(lambda file_name: self.convert_fname_to_time(file_name), fname_list)
+            map(lambda file_name: self._convert_fname_to_time(file_name), fnames_list)
         )
 
     def _check_if_longer(self, list_of_sublists: list) -> bool:
@@ -158,9 +170,9 @@ class AcquisitionParametersFinder(ArgsToAcquisitionParametersDataFrame):
             return True
 
     def _make_df(self, path) -> pd.DataFrame:
-        fname_list = self.get_file_names(path)
-        files_sizes = self.get_file_sizes(path)
-        splitted_fnames = self.get_info_from_fname(path)
+        fnames_list = self._get_file_names(path)
+        files_sizes = self._get_file_sizes(path)
+        splitted_fnames = self._get_info_from_fname(path)
         columns = ["date", "time", "miliseconds"]
         if self._check_if_longer(splitted_fnames):
             columns.append("type_of_data")
@@ -169,7 +181,7 @@ class AcquisitionParametersFinder(ArgsToAcquisitionParametersDataFrame):
             df = pd.DataFrame(splitted_fnames, columns=columns)
             df["type_of_data"] = "spectrum"
 
-        df["file_name"] = fname_list
+        df["file_name"] = fnames_list
         df["file_size"] = files_sizes
         df["date"] = "20" + df["date"]
         df["file_size"] = df["file_size"].astype(int)
@@ -186,65 +198,88 @@ class AcquisitionParametersFinder(ArgsToAcquisitionParametersDataFrame):
         files_info_df = df[new_order]
         return files_info_df
 
-    def convert_human_to_utc_ns(self, date: str, time: str, miliseconds: str) -> int:
-        """
-        Converts a given date and time to UTC timestamp in nanoseconds.
-
-        Parameters:
-        ----------
-        date : str
-            A string representation of the date in YYMMDD format.
-        time : str
-            A string representation of the time in HHMMSS format.
-
-        Returns:
-        -------
-        int
-            The UTC timestamp in nanoseconds corresponding to the given date and time.
-        """
+    def _convert_str_time_to_utc_datetime(
+        self, date: str, time: str, miliseconds: str
+    ) -> datetime:
         from_zone = tz.gettz("Europe/Berlin")
         to_zone = tz.gettz("UTC")
-        discharge_time = (
+        utc_datetime = (
             datetime.strptime(f"{date} {time} {miliseconds}", "%Y%m%d %H%M%S %f")
             .replace(tzinfo=from_zone)
             .astimezone(to_zone)
         )
+        return utc_datetime
 
+    def _mili_to_nano(self, miliseconds: str) -> int:
+        return int(miliseconds) * 1e6
+
+    def _convert_human_to_utc_ns(self, date: str, time: str, miliseconds: str) -> int:
+        utc_datetime = self._convert_str_time_to_utc_datetime(date, time, miliseconds)
+        nanoseconds = self._mili_to_nano(miliseconds)
         utc_time_in_ns = int(
-            round(calendar.timegm(discharge_time.utctimetuple())) * 1e9
-            + int(miliseconds) * 1e6
+            round(calendar.timegm(utc_datetime.utctimetuple())) * 1e9 + nanoseconds
         )
-
         return utc_time_in_ns
 
-    def _get_utc_time(self, df):
+    def _calculate_utc_ns_time(self, df: pd.DataFrame):
         df["utc_time"] = df.apply(
-            lambda row: self.convert_human_to_utc_ns(
+            lambda row: self._convert_human_to_utc_ns(
                 row["date"], row["time"], row["miliseconds"]
             ),
             axis=1,
         )
         df["utc_time"] = df["utc_time"].astype("int64")
-        df["discharge_nr"] = "-"
+
         return df
 
-    def _get_frequency(self, files_info_df, camera_setups, file_list, pulse_lengths):
+    def _merge_exp_setups_dataframes(self, files_info_df: pd.DataFrame, camera_setups):
+        """Merges two dataframes based on the dates and discharge numbers."
+
+        Args:
+            files_info_df (pd.DataFrame): _description_
+            camera_setups (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
+        files_info_df["discharge_nr"] = "-"
         files_info_df = files_info_df.set_index(["date", "discharge_nr"])
-        # merge both dataframes by indexed columns
+        # merge both dataframes by indexed columns (date, discharge_nr)
         merged_df = files_info_df.merge(
             camera_setups, left_index=True, right_index=True, how="left"
         )
+        return merged_df
+
+    def _assign_frequency(self, merged_df):
         merged_df["frequency"] = merged_df["ITTE_frequency"]
         merged_df.drop("ITTE_frequency", axis=1, inplace=True)
         merged_df["frequency"].fillna(200, inplace=True)
-
         files_info_df = merged_df.sort_values(by="file_name")
         files_info_df["frequency"] = files_info_df["frequency"].astype(int)
 
-        data = {"file_name": file_list, "frames_amount": pulse_lengths}
-        df2 = pd.DataFrame(data)
-        files_info_df = files_info_df.reset_index().merge(df2, on="file_name")
         return files_info_df
+
+    def _extract_frames_nr(self, file_list, nr_of_frames):
+        recorded_frames_amount = pd.DataFrame(
+            {"file_name": file_list, "frames_amount": nr_of_frames}
+        )
+        return recorded_frames_amount
+
+    def _merge_finfo_frames_nr_dataframes(self, files_info_df, recorded_frames_amount):
+        files_info_df = files_info_df.reset_index().merge(
+            recorded_frames_amount, on="file_name"
+        )
+        return files_info_df
+
+    # def _get_frequency(self, files_info_df, camera_setups, file_list, nr_of_frames):
+    #     exp_setup_df = self._merge_exp_setups_dataframes(files_info_df, camera_setups)
+    #     files_info_df = self._assign_frequency(exp_setup_df)
+    #     recorded_frames_amount = self._extract_frames_nr(file_list, nr_of_frames)
+
+    #     files_info_df = self._merge_finfo_frames_nr_dataframes(
+    #         files_info_df, recorded_frames_amount
+    #     )
+    #     return files_info_df
 
     def _update_acquisition_time(self, files_info_df):
         dt = 1 / files_info_df["frequency"]
