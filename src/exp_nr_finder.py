@@ -19,6 +19,8 @@ from triggers import Triggers
 
 pd.options.mode.chained_assignment = None
 
+TIME_AFTER_DISCHARGE = 1e9
+
 
 class ArgsToAcquisitionParametersDataFrame:
     def __init__(self, element, path):
@@ -276,7 +278,7 @@ class AcquisitionParametersFinder(ArgsToAcquisitionParametersDataFrame):
                     and (
                         # checks if the data were saved even 15s after T6
                         # (just in case file saving took too much time)
-                        (t1 < utc_time < t6 + 15e9)
+                        (t1 < utc_time < t6 + TIME_AFTER_DISCHARGE)
                         or (
                             t1 < row_total["utc_start_time"] < utc_time
                             and t1 < row_total["utc_time"] < t6
@@ -358,8 +360,9 @@ def get_exp_data_subdirs(element):
 
     return natsort.os_sorted(sub_dirs)
 
+
 if __name__ == "__main__":
-    elements = ["C", "O"]
+    elements = ["C", "O"]  # , "O"]
     for element in elements:
         list_of_dirs = get_exp_data_subdirs(element)
         for dir_path in list_of_dirs:
