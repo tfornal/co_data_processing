@@ -119,8 +119,8 @@ class AcquisitionParametersFinder(ArgsToAcquisitionParametersDataFrame):
         self.files_info_df = self._assign_discharge_nrs(
             self.files_info_df,
             self.triggers_df,
-            self.date,
         )
+
         self.files_info_df = self._shift_to_T1(
             self.files_info_df,
             self.triggers_df,
@@ -285,112 +285,66 @@ class AcquisitionParametersFinder(ArgsToAcquisitionParametersDataFrame):
         ).astype("int64")
         return files_info_df
 
-    # ####################### NAJSZYBSZY STARY SPOSOB
-    # def _assign_discharge_nrs(self, files_info_df, triggers_df, date):
-    #     dictionary = {}
-    #     for idx_df_total, row_total in files_info_df.iterrows():
-    #         utc_time = row_total["utc_time"]
-    #         discharge_nr = None
-    #         for idx_df_triggers, row_triggers in triggers_df.iterrows():
-    #             t1 = row_triggers["T1"]
-    #             t6 = row_triggers["T6"]
-    #             discharge_nr_trigger = row_triggers["discharge_nr"]
-    #             if (
-    #                 "BGR" not in row_total["file_name"]
-    #                 and idx_df_triggers != 0
-    #                 and row_total["file_size"] > 10
-    #                 and (
-    #                     # TIME_AFTER_DISCHARGE involves data that was
-    #                     # saved after trigger T6 (just in case
-    #                     # saving to a file took too much time)
-    #                     (t1 < utc_time < t6 + TIME_AFTER_DISCHARGE)
-    #                     or (
-    #                         t1 < row_total["utc_start_time"] < utc_time
-    #                         and t1 < row_total["utc_time"] < t6
-    #                     )
-    #                 )
-    #             ):
-    #                 discharge_nr = discharge_nr_trigger
-    #                 break
-
-    #             elif "BGR" in row_total["file_name"] and (t6 > utc_time):
-    #                 discharge_nr = discharge_nr_trigger
-    #                 break
-
-    #         if discharge_nr is not None:
-    #             dictionary[idx_df_total] = discharge_nr
-    #         else:
-    #             row_total["type_of_data"] = "trash"
-    #     if dictionary:
-    #         files_info_df["discharge_nr"].loc[
-    #             np.array(list(dictionary.keys()))
-    #         ] = np.array(list(dictionary.values()))
-    #         indexes_to_assign = files_info_df.index[
-    #             ~files_info_df.index.isin(dictionary)
-    #         ]
-    #         files_info_df["type_of_data"].loc[indexes_to_assign] = "trash"
-    #     else:
-    #         print(f"\n{date} - no discharges registered during the day!\n")
-
-    #     files_info_df["discharge_nr"] = files_info_df["discharge_nr"].astype(
-    #         {"discharge_nr": "int32"}, errors="ignore"
-    #     )
-    #     return files_info_df
-
-    ####################### NAJSZYBSZY STARY SPOSOB - proba rozbicia
-
-    def _condition(self, triggers_df, idx_df_triggers, row_triggers, row_total):
-        utc_time = row_total["utc_time"]
-        utc_start_time = row_total["utc_start_time"]
-        t1 = row_triggers["T1"]
-        t6 = row_triggers["T6"]
-        is_large_file = row_total["file_size"] > 10
-        is_bgr_file = "BGR" in row_total["file_name"]
-        # discharge_nr_trigger = row_triggers["discharge_nr"]
-        if (
-            not is_bgr_file
-            and idx_df_triggers > 0
-            and is_large_file
-            and (
-                # TIME_AFTER_DISCHARGE involves data that was
-                # saved after trigger T6 (just in case
-                # saving to a file took too much time)
-                (t1 < utc_time < t6 + TIME_AFTER_DISCHARGE)
-                or (t1 < utc_start_time < utc_time and t1 < utc_time < t6)
-            )
-        ):
-            return True
-
-        elif is_bgr_file and (
-            t6 > utc_time  # > triggers_df["T6"].shift(1).loc[idx_df_triggers]
-        ):
-            return True
-        return False
-
-    def _assign_discharge_nrs(self, files_info_df, triggers_df, date):
-        dictionary = {}
+    def _grab_discharge_nrs(self, files_info_df, triggers_df):
+        """Compares two dataframes: the one containing information about
+        all the files at a given date and the triggers df containing information
+        about all the triggers that occured that day.
+        """
+        assigned_indexes = {}
         for idx_df_total, row_total in files_info_df.iterrows():
             utc_time = row_total["utc_time"]
-            discharge_nr = None
             for idx_df_triggers, row_triggers in triggers_df.iterrows():
-                if self._condition(
-                    triggers_df, idx_df_triggers, row_triggers, row_total
+                utc_time = row_total["utc_time"]
+                is_large_file = row_total["file_size"] > 10
+                is_bgr_file = "BGR" in row_total["file_name"]
+                utc_start_time = row_total["utc_start_time"]
+                t1 = row_triggers["T1"]
+                t6 = row_triggers["T6"]
+                discharge_nr_trigger = row_triggers["discharge_nr"]
+                if (
+                    (
+                        not is_bgr_file
+                        and idx_df_triggers > 0
+                        and is_large_file
+                        and (
+                            # TIME_AFTER_DISCHARGE involves data that was
+                            # saved after trigger T6 (just in case
+                            # saving to a file took too much time)
+                            (t1 < utc_time < t6 + TIME_AFTER_DISCHARGE)
+                            or (t1 < utc_start_time < utc_time and t1 < utc_time < t6)
+                        )
+                    )
+                    or is_bgr_file
+                    and (t6 > utc_time)
                 ):
-                    discharge_nr = row_triggers["discharge_nr"]
+                    assigned_indexes[idx_df_total] = discharge_nr_trigger
+                    break
 
-            if discharge_nr is not None:
-                dictionary[idx_df_total] = discharge_nr
-            else:
-                row_total["type_of_data"] = "trash"
-        if dictionary:
+        return assigned_indexes
+
+    def _assign_discharge_nrs(
+        self, files_info_df: pd.DataFrame, triggers_df: pd.DataFrame
+    ) -> pd.DataFrame:
+        """TODO
+
+        Args:
+            files_info_df (pd.DataFrame):
+            triggers_df (pd.DataFrame):
+
+        Returns:
+            pd.DataFrame: Updated dataframe with assigned discharge numbers.
+        """
+        assigned_indexes = self._grab_discharge_nrs(files_info_df, triggers_df)
+        if assigned_indexes:
             files_info_df["discharge_nr"].loc[
-                np.array(list(dictionary.keys()))
-            ] = np.array(list(dictionary.values()))
+                np.array(list(assigned_indexes.keys()))
+            ] = np.array(list(assigned_indexes.values()))
             indexes_to_assign = files_info_df.index[
-                ~files_info_df.index.isin(dictionary)
+                ~files_info_df.index.isin(assigned_indexes)
             ]
             files_info_df["type_of_data"].loc[indexes_to_assign] = "trash"
         else:
+            date = files_info_df.loc[0, "date"]
             print(f"\n{date} - no discharges registered during the day!\n")
 
         files_info_df["discharge_nr"] = files_info_df["discharge_nr"].astype(
@@ -398,138 +352,87 @@ class AcquisitionParametersFinder(ArgsToAcquisitionParametersDataFrame):
         )
         return files_info_df
 
-    ####################### ITERTOOLS - WOLNIEJSZY SPOSOB
-
-    # def _assign_discharge_nrs(self, files_info_df, triggers_df, date):
-    #     dictionary = {}
-
-    #     for idx_files, idx_triggers in product(files_info_df.index, triggers_df.index):
-    #         files_info = files_info_df.loc[idx_files]
-    #         utc_time = files_info["utc_time"]
-
-    #         triggers = triggers_df.loc[idx_triggers]
-    #         t1, t6, discharge_nr_trigger = triggers[["T1", "T6", "discharge_nr"]]
-    #         is_bgr_file = "BGR" in files_info["file_name"]
-    #         is_large_file = files_info["file_size"] > 10
-    #         t6_prev = triggers_df["T6"].shift(1).loc[idx_triggers]
-
-    #         if (
-    #             idx_files > 0
-    #             and not is_bgr_file
-    #             and is_large_file
-    #             and (
-    #                 (t1 < utc_time < t6 + TIME_AFTER_DISCHARGE)
-    #                 or (
-    #                     t1 < files_info["utc_start_time"] < utc_time
-    #                     and t1 < utc_time < t6
-    #                 )
-    #             )
-    #         ):
-    #             dictionary[idx_files] = discharge_nr_trigger
-    #         elif is_bgr_file and (t6 > utc_time > t6_prev):
-    #             dictionary[idx_files] = discharge_nr_trigger
-
-    #     if dictionary:
-    #         files_info_df.loc[list(dictionary.keys()), "discharge_nr"] = list(
-    #             dictionary.values()
-    #         )
-    #         indexes_to_assign = files_info_df.index.difference(dictionary.keys())
-    #         files_info_df.loc[indexes_to_assign, "type_of_data"] = "trash"
-    #     else:
-    #         print(f"\n{date} - no discharges registered during the day!\n")
-
-    #     files_info_df["discharge_nr"] = files_info_df["discharge_nr"].astype(
-    #         "int32", errors="ignore"
-    #     )
-
-    #     return files_info_df
-
-    # #########################  stary sposob ale po rozbiciu na funkcje - wolniejszy
-    #     def _check_discharge_condition(
-    #         self, row_total, idx_df_triggers, row_triggers, utc_time
-    #     ):
-    #         t1, t6 = row_triggers[["T1", "T6"]]
-    #         discharge_nr_trigger = row_triggers["discharge_nr"]
-    #         is_bgr_file = "BGR" in row_total["file_name"]
-    #         is_large_file = row_total["file_size"] > 10
-    #         # breakpoint()
-    #         if not is_bgr_file and idx_df_triggers > 0 and is_large_file:
-    #             if (t1 < utc_time < t6 + TIME_AFTER_DISCHARGE) or (
-    #                 t1 < row_total["utc_start_time"] < utc_time
-    #                 and t1 < row_total["utc_time"] < t6
-    #             ):
-    #                 return True
-    #         elif is_bgr_file and (t6 > utc_time):
-    #             return True
-    #         return False
-
-    #     def _assign_discharge_nrs(self, files_info_df, triggers_df, date):
-    #         files_info_df = self._process_discharge_data(files_info_df, triggers_df, date)
-    #         return files_info_df
-
-    #     def _process_discharge_data(self, files_info_df, triggers_df, date):
-    #         dictionary = {}
-    #         for idx_df_total, row_total in files_info_df.iterrows():
-    #             utc_time = row_total["utc_time"]
-    #             discharge_nr = None
-    #             for idx_df_triggers, row_triggers in triggers_df.iterrows():
-    #                 if self._check_discharge_condition(
-    #                     row_total, idx_df_triggers, row_triggers, utc_time
-    #                 ):
-    #                     discharge_nr = row_triggers["discharge_nr"]
-    #                     break
-
-    #             if discharge_nr is not None:
-    #                 dictionary[idx_df_total] = discharge_nr
-    #             else:
-    #                 row_total["type_of_data"] = "trash"
-    #         # breakpoint()
-    #         if dictionary:
-    #             files_info_df["discharge_nr"].loc[
-    #                 np.array(list(dictionary.keys()))
-    #             ] = np.array(list(dictionary.values()))
-    #             indexes_to_assign = files_info_df.index[
-    #                 ~files_info_df.index.isin(dictionary)
-    #             ]
-    #             files_info_df["type_of_data"].loc[indexes_to_assign] = "trash"
-    #         else:
-    #             print(f"\n{date} - no discharges registered during the day!\n")
-
-    #         files_info_df["discharge_nr"] = files_info_df["discharge_nr"].astype(
-    #             {"discharge_nr": "int32"}, errors="ignore"
-    #         )
-    #         return files_info_df
-
     def _shift_to_T1(self, files_info_df, triggers_df):
-        ### TODO refactoring extremely needed! Break into smaller functions
+        #### TODO - TBC
+        # # breakpoint()
+        # merged_df = pd.merge(files_info_df, triggers_df, on="discharge_nr", how="inner")
+        # filtered_df = merged_df[~merged_df["type_of_data"].str.contains("BGR")]
+        # # filtered_df["new_tme"] = filtered_df["utc_start_time"] - filtered_df["T1"]
+        # filtered_df["new_time"] = (
+        #     filtered_df["utc_start_time"]
+        #     - filtered_df["utc_start_time"]
+        #     + filtered_df["T1"]
+        #     + filtered_df["acquisition_time"] * 1e9
+        # )
+        # files_info_df["new_time"] = filtered_df["new_time"].astype("int64")
+        #### TODO - TBC
 
         calibrated_start_times = {}
         discharge_nr = 0
-        save_time_offset = 0
+        file_save_time_offset = 0
         for idx_df_total, row_total in files_info_df.iterrows():
             for idx_df_triggers, row_triggers in triggers_df.iterrows():
                 if (
                     row_total["discharge_nr"] == row_triggers["discharge_nr"]
                     and "BGR" not in row_total["file_name"]
                 ):
-                    offset = row_total["utc_start_time"] - row_triggers["T1"]
+                    file_save_time_offset = (
+                        row_total["utc_start_time"] - row_triggers["T1"]
+                    )
                     if row_total["discharge_nr"] != discharge_nr:
-                        save_time_offset = offset
+                        # file_save_time_offset = offset
                         discharge_nr = row_total["discharge_nr"]
-                    calibrated_start_times[idx_df_total] = save_time_offset
-
+                    calibrated_start_times[idx_df_total] = file_save_time_offset
         files_info_df["new_time"] = [0] * len(files_info_df)
-        idx = list(calibrated_start_times.keys())
-        offset = list(calibrated_start_times.values())
-        files_info_df["new_time"].loc[idx] = (
-            files_info_df["utc_start_time"].loc[idx]
-            - offset
+
+        indexes = list(calibrated_start_times.keys())
+
+        file_save_time_offset = list(calibrated_start_times.values())
+        files_info_df["new_time"].loc[indexes] = (
+            files_info_df["utc_start_time"].loc[indexes]
+            - file_save_time_offset
             + files_info_df["acquisition_time"] * 1e9
         )
         ## new_time - jest to czas zapisu pliku po uwzglednieniu offsetu
         ## (offset = T1 - (czas zapisu - duration))
         files_info_df["new_time"] = files_info_df["new_time"].astype("int64")
         return files_info_df
+
+    # ##########BACKUP
+    # def _shift_to_T1(self, files_info_df, triggers_df):
+    #     breakpoint()
+    #     merged_df = pd.merge(files_info_df, triggers_df, on="discharge_nr", how="inner")
+    #     filtered_df = merged_df[~merged_df["type_of_data"].str.contains("BGR")]
+    #     breakpoint()
+    #     calibrated_start_times = {}
+    #     discharge_nr = 0
+    #     file_save_time_offset = 0
+    #     for idx_df_total, row_total in files_info_df.iterrows():
+    #         for idx_df_triggers, row_triggers in triggers_df.iterrows():
+    #             if (
+    #                 row_total["discharge_nr"] == row_triggers["discharge_nr"]
+    #                 and "BGR" not in row_total["file_name"]
+    #             ):
+    #                 file_save_time_offset = (
+    #                     row_total["utc_start_time"] - row_triggers["T1"]
+    #                 )
+    #                 if row_total["discharge_nr"] != discharge_nr:
+    #                     # file_save_time_offset = offset
+    #                     discharge_nr = row_total["discharge_nr"]
+    #                 calibrated_start_times[idx_df_total] = file_save_time_offset
+    #     files_info_df["new_time"] = [0] * len(files_info_df)
+    #     indexes = list(calibrated_start_times.keys())
+    #     file_save_time_offset = list(calibrated_start_times.values())
+    #     files_info_df["new_time"].loc[indexes] = (
+    #         files_info_df["utc_start_time"].loc[indexes]
+    #         - file_save_time_offset
+    #         + files_info_df["acquisition_time"] * 1e9
+    #     )
+    #     ## new_time - jest to czas zapisu pliku po uwzglednieniu offsetu
+    #     ## (offset = T1 - (czas zapisu - duration))
+    #     files_info_df["new_time"] = files_info_df["new_time"].astype("int64")
+    #     return files_info_df
+    # ##########BACKUP
 
     def _create_directory(self, element):
         path = self._get_exp_numbers_directory(element)
