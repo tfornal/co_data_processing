@@ -353,12 +353,8 @@ class AcquisitionParametersFinder(ArgsToAcquisitionParametersDataFrame):
         return files_info_df
 
     def _shift_to_T1(self, files_info_df, triggers_df):
-        #### TODO - TBC
         triggers_df = triggers_df[["discharge_nr", "T1"]]
-        # breakpoint()
         merged_df = pd.merge(files_info_df, triggers_df, on="discharge_nr", how="left")
-        # filtered_df = merged_df[~merged_df["type_of_data"].str.contains("BGR")]
-        # filtered_df["new_tme"] = filtered_df["utc_start_time"] - filtered_df["T1"]
         filtered_df = merged_df
         filtered_df["new_time"] = (
             filtered_df["utc_start_time"]
@@ -369,14 +365,48 @@ class AcquisitionParametersFinder(ArgsToAcquisitionParametersDataFrame):
         filtered_df["new_time"] = filtered_df["new_time"].fillna(0).astype(int)
         files_info_df = filtered_df.drop("T1", axis=1)
 
+        # def test():
+        #     neighboring_discharge_indexes = self._extract_neighboring_discharge_indexes(
+        #         files_info_df
+        #     )
+        #     selected = files_info_df.loc[neighboring_discharge_indexes.keys()]
+        #     selected = selected[~selected["type_of_data"].str.contains("BGR")]
+        #     ### selected ["utc_time"] przesunac
+        #     ### utc_time - czas zapisu pliku przez komputer
+        #     ### utc_start_time - obliczony czas rozpoczecia zapisu przed skorygowaniem o offset
+        #     ### new_time - czas zakonczenia akwizycji danego pliku (uwzglednia offset)
+        #     first_start_time = selected.groupby("discharge_nr")[
+        #         "utc_start_time"
+        #     ].transform("first")
+
+        #     if "20230215" in self.date:
+        #         breakpoint()
+        #     selected["utc_start_time"] = first_start_time
+        #     files_info_df.loc[
+        #         first_start_time.index, "new_time"
+        #     ] = first_start_time.values
+        #     #####3 polaczyc oba dataframey na indexy
+        #     # breakpoint()
+        #     return files_info_df
+
+        # files_info_df = test()
         return files_info_df
+
+    def _extract_neighboring_discharge_indexes(self, df):
+        discharges_list = df["discharge_nr"].to_list()
+        multiple_discharge_files = {}
+        for i in range(1, len(discharges_list)):
+            if (
+                discharges_list[i] == discharges_list[i - 1]
+                and discharges_list[i] != "-"
+            ):
+                multiple_discharge_files[i - 1] = discharges_list[i]
+                multiple_discharge_files[i] = discharges_list[i]
+
+        return multiple_discharge_files
 
     # ##########BACKUP
     # def _shift_to_T1(self, files_info_df, triggers_df):
-    #     breakpoint()
-    #     merged_df = pd.merge(files_info_df, triggers_df, on="discharge_nr", how="inner")
-    #     filtered_df = merged_df[~merged_df["type_of_data"].str.contains("BGR")]
-    #     breakpoint()
     #     calibrated_start_times = {}
     #     discharge_nr = 0
     #     file_save_time_offset = 0
@@ -405,7 +435,8 @@ class AcquisitionParametersFinder(ArgsToAcquisitionParametersDataFrame):
     #     ## (offset = T1 - (czas zapisu - duration))
     #     files_info_df["new_time"] = files_info_df["new_time"].astype("int64")
     #     return files_info_df
-    # ##########BACKUP
+
+    ##########BACKUP
 
     def _create_directory(self, element):
         path = self._get_exp_numbers_directory(element)
