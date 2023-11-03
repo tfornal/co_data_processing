@@ -354,48 +354,21 @@ class AcquisitionParametersFinder(ArgsToAcquisitionParametersDataFrame):
 
     def _shift_to_T1(self, files_info_df, triggers_df):
         #### TODO - TBC
-        # # breakpoint()
-        # merged_df = pd.merge(files_info_df, triggers_df, on="discharge_nr", how="inner")
+        triggers_df = triggers_df[["discharge_nr", "T1"]]
+        # breakpoint()
+        merged_df = pd.merge(files_info_df, triggers_df, on="discharge_nr", how="left")
         # filtered_df = merged_df[~merged_df["type_of_data"].str.contains("BGR")]
-        # # filtered_df["new_tme"] = filtered_df["utc_start_time"] - filtered_df["T1"]
-        # filtered_df["new_time"] = (
-        #     filtered_df["utc_start_time"]
-        #     - filtered_df["utc_start_time"]
-        #     + filtered_df["T1"]
-        #     + filtered_df["acquisition_time"] * 1e9
-        # )
-        # files_info_df["new_time"] = filtered_df["new_time"].astype("int64")
-        #### TODO - TBC
-
-        calibrated_start_times = {}
-        discharge_nr = 0
-        file_save_time_offset = 0
-        for idx_df_total, row_total in files_info_df.iterrows():
-            for idx_df_triggers, row_triggers in triggers_df.iterrows():
-                if (
-                    row_total["discharge_nr"] == row_triggers["discharge_nr"]
-                    and "BGR" not in row_total["file_name"]
-                ):
-                    file_save_time_offset = (
-                        row_total["utc_start_time"] - row_triggers["T1"]
-                    )
-                    if row_total["discharge_nr"] != discharge_nr:
-                        # file_save_time_offset = offset
-                        discharge_nr = row_total["discharge_nr"]
-                    calibrated_start_times[idx_df_total] = file_save_time_offset
-        files_info_df["new_time"] = [0] * len(files_info_df)
-
-        indexes = list(calibrated_start_times.keys())
-
-        file_save_time_offset = list(calibrated_start_times.values())
-        files_info_df["new_time"].loc[indexes] = (
-            files_info_df["utc_start_time"].loc[indexes]
-            - file_save_time_offset
-            + files_info_df["acquisition_time"] * 1e9
+        # filtered_df["new_tme"] = filtered_df["utc_start_time"] - filtered_df["T1"]
+        filtered_df = merged_df
+        filtered_df["new_time"] = (
+            filtered_df["utc_start_time"]
+            - filtered_df["utc_start_time"]
+            + filtered_df["T1"]
+            + filtered_df["acquisition_time"] * 1e9
         )
-        ## new_time - jest to czas zapisu pliku po uwzglednieniu offsetu
-        ## (offset = T1 - (czas zapisu - duration))
-        files_info_df["new_time"] = files_info_df["new_time"].astype("int64")
+        filtered_df["new_time"] = filtered_df["new_time"].fillna(0).astype(int)
+        files_info_df = filtered_df.drop("T1", axis=1)
+
         return files_info_df
 
     # ##########BACKUP
