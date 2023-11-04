@@ -363,33 +363,39 @@ class AcquisitionParametersFinder(ArgsToAcquisitionParametersDataFrame):
             + filtered_df["acquisition_time"] * 1e9
         )
         filtered_df["new_time"] = filtered_df["new_time"].fillna(0).astype(int)
+        filtered_df["offset"] = filtered_df["utc_time"] - filtered_df["new_time"]
         files_info_df = filtered_df.drop("T1", axis=1)
 
-        # def test():
-        #     neighboring_discharge_indexes = self._extract_neighboring_discharge_indexes(
-        #         files_info_df
-        #     )
-        #     selected = files_info_df.loc[neighboring_discharge_indexes.keys()]
-        #     selected = selected[~selected["type_of_data"].str.contains("BGR")]
-        #     ### selected ["utc_time"] przesunac
-        #     ### utc_time - czas zapisu pliku przez komputer
-        #     ### utc_start_time - obliczony czas rozpoczecia zapisu przed skorygowaniem o offset
-        #     ### new_time - czas zakonczenia akwizycji danego pliku (uwzglednia offset)
-        #     first_start_time = selected.groupby("discharge_nr")[
-        #         "utc_start_time"
-        #     ].transform("first")
+        def test():
+            neighboring_discharge_indexes = self._extract_neighboring_discharge_indexes(
+                files_info_df
+            )
 
-        #     if "20230215" in self.date:
-        #         breakpoint()
-        #     selected["utc_start_time"] = first_start_time
-        #     files_info_df.loc[
-        #         first_start_time.index, "new_time"
-        #     ] = first_start_time.values
-        #     #####3 polaczyc oba dataframey na indexy
-        #     # breakpoint()
-        #     return files_info_df
+            selected = files_info_df.loc[neighboring_discharge_indexes.keys()]
+            selected = selected[~selected["type_of_data"].str.contains("BGR")]
+            if "20230215" in self.date:
+                breakpoint()
+            ### selected ["utc_time"] przesunac
+            ### utc_time - czas zapisu pliku przez komputer
+            ### utc_start_time - obliczony czas rozpoczecia zapisu przed skorygowaniem o offset
+            ### new_time - czas zakonczenia akwizycji danego pliku (uwzglednia offset) pomiedzy wystartowaniem a T1
 
-        # files_info_df = test()
+            first_offset = selected.groupby("discharge_nr")["offset"].transform("first")
+
+            selected["time_after_offset"] = first_offset
+            first_offset = (
+                selected["utc_start_time"]
+                - selected["time_after_offset"]
+                + selected["acquisition_time"] * 1e9
+            )
+            files_info_df.loc[first_offset.index, "new_time"] = first_offset.values
+
+            if "20230215" in self.date:
+                breakpoint()
+            return files_info_df
+
+        files_info_df = test()
+
         return files_info_df
 
     def _extract_neighboring_discharge_indexes(self, df):
