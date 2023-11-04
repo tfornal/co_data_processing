@@ -29,6 +29,9 @@ class FilePathManager:
     def get_directory_for_time_evolutions(self, element, date):
         return self._get_path("time_evolutions", element, date)
 
+    def get_directory_for_time_evolutions_comparison(self, date):
+        return self._get_path("time_evolutions", "_comparison", date)
+
     def get_directory_for_images(self, element, date):
         return self._get_path("time_evolutions", element, date, "img")
 
